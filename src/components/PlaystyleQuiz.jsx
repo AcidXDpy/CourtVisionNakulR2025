@@ -1,11 +1,11 @@
 import { RotateCcw, Trophy } from 'lucide-react';
-import { quizQuestions, quizSliders, scoreQuiz } from '../data/playstyles.js';
+import { quizProfileFields, quizQuestions, quizSliders, scoreQuiz } from '../data/playstyles.js';
 import Card from './Card.jsx';
 
 export default function PlaystyleQuiz({ answers, setAnswers, onComplete, onReset }) {
   const answeredChoiceCount = quizQuestions.filter((question) => Number.isInteger(answers[question.id])).length;
-  const answeredCount = answeredChoiceCount + quizSliders.length;
-  const totalInputs = quizQuestions.length + quizSliders.length;
+  const answeredCount = answeredChoiceCount + quizSliders.length + quizProfileFields.length;
+  const totalInputs = quizQuestions.length + quizSliders.length + quizProfileFields.length;
   const complete = answeredChoiceCount === quizQuestions.length;
 
   function choose(questionId, optionIndex) {
@@ -16,14 +16,79 @@ export default function PlaystyleQuiz({ answers, setAnswers, onComplete, onReset
     setAnswers((current) => ({ ...current, [sliderId]: Number(value) }));
   }
 
+  function chooseProfileField(fieldId, value) {
+    setAnswers((current) => ({ ...current, [fieldId]: value }));
+  }
+
   function sliderValue(slider) {
     return Number(answers[slider.id] ?? slider.defaultValue);
+  }
+
+  function profileValue(field) {
+    return answers[field.id] ?? field.defaultValue;
   }
 
   function finishQuiz() {
     if (!complete) return;
     const sliderDefaults = Object.fromEntries(quizSliders.map((slider) => [slider.id, slider.defaultValue]));
-    onComplete(scoreQuiz({ ...sliderDefaults, ...answers }));
+    const profileDefaults = Object.fromEntries(quizProfileFields.map((field) => [field.id, field.defaultValue]));
+    onComplete(scoreQuiz({ ...sliderDefaults, ...profileDefaults, ...answers }));
+  }
+
+  function renderProfileField(field) {
+    const sharedClassName = 'focus-ring mt-2 w-full rounded-lg border border-court-line bg-white px-3 py-2 text-sm text-court-ink outline-none transition focus:border-court-blue';
+
+    if (field.type === 'select') {
+      return (
+        <select value={profileValue(field)} onChange={(event) => chooseProfileField(field.id, event.target.value)} className={sharedClassName}>
+          {field.options.map((option) => <option key={option}>{option}</option>)}
+        </select>
+      );
+    }
+
+    if (field.type === 'range') {
+      const value = Number(profileValue(field));
+      return (
+        <div>
+          <div className="mt-2 flex items-center gap-3">
+            <input
+              aria-label={field.label}
+              type="range"
+              min="1"
+              max="10"
+              step="1"
+              value={value}
+              onChange={(event) => chooseProfileField(field.id, Number(event.target.value))}
+              className="w-full accent-court-blue"
+            />
+            <span className="w-12 rounded-lg bg-court-lime/20 px-2 py-1 text-center text-sm font-black text-court-ink">{value}/10</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (field.type === 'textarea') {
+      return (
+        <textarea
+          value={profileValue(field)}
+          onChange={(event) => chooseProfileField(field.id, event.target.value)}
+          placeholder={field.placeholder}
+          rows="3"
+          className={`${sharedClassName} min-h-24 resize-y`}
+        />
+      );
+    }
+
+    return (
+      <input
+        value={profileValue(field)}
+        onChange={(event) => chooseProfileField(field.id, event.target.value)}
+        type={field.type}
+        placeholder={field.placeholder}
+        min={field.type === 'number' ? '0' : undefined}
+        className={sharedClassName}
+      />
+    );
   }
 
   return (
@@ -47,6 +112,26 @@ export default function PlaystyleQuiz({ answers, setAnswers, onComplete, onReset
             </div>
           </div>
         </div>
+
+        <Card className="mb-8 bg-gradient-to-br from-white via-court-blue/5 to-court-lime/10">
+          <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.18em] text-court-blue">Player Data</p>
+              <h3 className="mt-2 text-2xl font-black text-court-ink">Give the model better signals</h3>
+            </div>
+            <p className="max-w-2xl text-sm leading-6 text-slate-600">
+              These inputs make the recommendation less generic by adding skill, swing, budget, setup history, and arm-health context.
+            </p>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {quizProfileFields.map((field) => (
+              <label key={field.id} className={field.type === 'textarea' ? 'md:col-span-2 lg:col-span-4' : ''}>
+                <span className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{field.label}</span>
+                {renderProfileField(field)}
+              </label>
+            ))}
+          </div>
+        </Card>
 
         <div className="grid gap-4 lg:grid-cols-2">
           {quizQuestions.map((question, index) => (

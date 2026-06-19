@@ -1,7 +1,7 @@
 import { CheckCircle2, Download, ShieldCheck, Target, Wallet, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { playstyles } from '../data/playstyles.js';
-import { buildSetupOptions, loadFeedback, money, saveFeedback, STRINGING_LABOR_ESTIMATE } from '../data/recommendationModel.js';
+import { buildAdvancedRecommendations, loadFeedback, money, saveFeedback, STRINGING_LABOR_ESTIMATE } from '../data/recommendationModel.js';
 import Card from './Card.jsx';
 
 const scoreLabels = {
@@ -60,6 +60,54 @@ function ScoreBreakdown({ components }) {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function WarningList({ warnings }) {
+  if (!warnings?.length) {
+    return <p className="mt-3 rounded-lg border border-court-line bg-white p-3 text-xs leading-5 text-slate-600">No major mismatch warnings from the current model.</p>;
+  }
+
+  return (
+    <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-700">Watchouts</p>
+      <ul className="mt-2 space-y-1">
+        {warnings.map((warning) => (
+          <li key={warning} className="text-xs leading-5 text-amber-800">{warning}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function RankedFitCard({ item, type }) {
+  return (
+    <div className="rounded-lg border border-court-line bg-slate-50 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-court-blue">{type}</p>
+          <h4 className="mt-2 text-lg font-black text-court-ink">{item.name}</h4>
+          <p className="mt-1 text-xs text-slate-500">
+            Fit {item.finalScore}/100 · confidence {item.confidenceScore}/100
+          </p>
+        </div>
+        <span className="rounded-lg bg-white px-2 py-1 text-xs font-bold text-slate-600">{item.price}</span>
+      </div>
+      {item.image && (
+        <div className="mt-3 overflow-hidden rounded-lg bg-white">
+          <img src={item.image} alt={item.imageAlt} className="h-24 w-full object-contain p-2" />
+        </div>
+      )}
+      <ul className="mt-3 space-y-2">
+        {item.explanation.slice(0, 2).map((reason) => (
+          <li key={reason} className="text-xs leading-5 text-slate-600">{reason}</li>
+        ))}
+      </ul>
+      {type === 'String' && item.suggestedTensionRange && (
+        <p className="mt-3 rounded-lg bg-white p-2 text-xs font-bold text-court-ink">Suggested tension: {item.suggestedTensionRange}</p>
+      )}
+      <WarningList warnings={item.warnings} />
     </div>
   );
 }
@@ -171,7 +219,9 @@ export default function ResultsDashboard({ result }) {
 
   const primary = playstyles[result.primary];
   const secondary = playstyles[result.secondary];
-  const setupOptions = buildSetupOptions(result);
+  const recommendations = buildAdvancedRecommendations(result);
+  const setupOptions = recommendations.topSetups;
+  const player = recommendations.player;
 
   return (
     <section id="results" className="section-pad">
@@ -215,6 +265,35 @@ export default function ResultsDashboard({ result }) {
           <ListBlock title="Setup Watchouts" items={primary.weaknesses} />
         </div>
 
+        <Card className="mt-4">
+          <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.18em] text-court-blue">Recommendation Model</p>
+              <h3 className="mt-2 text-2xl font-black text-court-ink">Analytics built into the fit</h3>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                The engine converts your quiz into a player vector, compares it with tennis archetypes, normalizes spec signals, and then applies budget, skill, and arm-safety penalties.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg bg-slate-50 p-3">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Closest archetype</p>
+                <p className="mt-2 text-lg font-black text-court-ink">{player.primaryArchetype.name}</p>
+                <p className="mt-1 text-sm text-slate-600">{player.primaryArchetype.similarity}% similarity</p>
+              </div>
+              <div className="rounded-lg bg-slate-50 p-3">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Skill signal</p>
+                <p className="mt-2 text-lg font-black text-court-ink">{player.skillScore}/100</p>
+                <p className="mt-1 text-sm text-slate-600">{result.profileInputs?.skillLevel || 'Recreational'}</p>
+              </div>
+              <div className="rounded-lg bg-slate-50 p-3">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Risk controls</p>
+                <p className="mt-2 text-lg font-black text-court-ink">{player.hasPain ? 'Arm-safe bias' : 'Performance bias'}</p>
+                <p className="mt-1 text-sm text-slate-600">{player.budgetTier} budget model</p>
+              </div>
+            </div>
+          </div>
+        </Card>
+
         <div className="mt-4 grid gap-4">
           <Card>
             <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
@@ -225,7 +304,7 @@ export default function ResultsDashboard({ result }) {
               <FeedbackExport />
             </div>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Each setup is ranked by a weighted fit model using your style, slider traits, comfort needs, and setup budget. Estimated totals include one racket, one string set, and about {money(STRINGING_LABOR_ESTIMATE)} for stringing labor.
+              Each setup is ranked by a weighted fit score from 0-100 using your style, player data, slider traits, comfort needs, and setup budget. Estimated totals include one racket, one string set, and about {money(STRINGING_LABOR_ESTIMATE)} for stringing labor.
             </p>
             <div className="mt-5 grid gap-4 lg:grid-cols-3">
               {setupOptions.map((option) => (
@@ -234,7 +313,7 @@ export default function ResultsDashboard({ result }) {
                     <div>
                       <p className="text-xs font-bold uppercase tracking-[0.16em] text-court-blue">{option.label}</p>
                       <h4 className="mt-2 text-2xl font-black text-court-ink">{money(option.total)}</h4>
-                      <p className="mt-1 text-xs font-bold text-slate-500">{confidenceLabel(option.finalScore)} - fit score {option.finalScore}/100</p>
+                      <p className="mt-1 text-xs font-bold text-slate-500">{confidenceLabel(option.confidenceScore)} - fit {option.finalScore}/100 - confidence {option.confidenceScore}/100</p>
                     </div>
                     <span className={`rounded-lg px-2 py-1 text-xs font-bold ${option.inBudget ? 'bg-court-lime/20 text-court-ink' : 'bg-white text-slate-500'}`}>
                       {bestUseLabel(option, setupOptions)}
@@ -256,7 +335,7 @@ export default function ResultsDashboard({ result }) {
                     <div>
                       <p className="font-bold text-court-lime">String</p>
                       <p className="text-slate-700">{option.string.name}</p>
-                      <p className="text-xs text-slate-500">{option.string.price} / {option.string.stringType} / {option.string.tensionRange}</p>
+                      <p className="text-xs text-slate-500">{option.string.price} / {option.string.stringType} / suggested {option.tensionRange}</p>
                     </div>
                     <div className="rounded-lg border border-court-line bg-white p-3 text-xs leading-5 text-slate-600">
                       Racket {option.racket.price} + string {option.string.price} + labor {money(STRINGING_LABOR_ESTIMATE)}
@@ -264,12 +343,30 @@ export default function ResultsDashboard({ result }) {
                     <div className="rounded-lg border border-court-line bg-white p-3 text-xs leading-5 text-slate-600">
                       <span className="font-bold text-court-ink">Why this fits:</span> {option.explanation.join(' | ')}
                     </div>
+                    <WarningList warnings={option.warnings} />
                   </div>
                   <FeedbackPanel option={option} result={result} />
                 </div>
               ))}
             </div>
           </Card>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card>
+              <h3 className="text-lg font-black text-court-ink">Top 3 Rackets</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">Ranked independently before string pairing, so you can see the model's frame choices clearly.</p>
+              <div className="mt-4 grid gap-3">
+                {recommendations.topRackets.map((racket) => <RankedFitCard key={racket.name} item={racket} type="Racket" />)}
+              </div>
+            </Card>
+            <Card>
+              <h3 className="text-lg font-black text-court-ink">Top 3 Strings</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">Ranked for your comfort, spin, control, budget, and durability profile.</p>
+              <div className="mt-4 grid gap-3">
+                {recommendations.topStrings.map((string) => <RankedFitCard key={string.name} item={string} type="String" />)}
+              </div>
+            </Card>
+          </div>
         </div>
       </div>
     </section>

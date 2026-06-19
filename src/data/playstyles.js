@@ -199,7 +199,7 @@ export const quizSliders = [
     scores: { 'Serve-and-Volley Player': 2.2, 'All-Court Player': 1.4, 'Defensive Grinder': -0.8 },
   },
   {
-    id: 'riskTolerance',
+    id: 'riskIntent',
     label: 'Shot selection',
     lowLabel: 'High percentage',
     highLabel: 'Take aggressive cuts',
@@ -240,6 +240,121 @@ export const quizSliders = [
   },
 ];
 
+export const quizProfileFields = [
+  {
+    id: 'skillLevel',
+    label: 'UTR/NTRP or skill level',
+    type: 'select',
+    defaultValue: 'Recreational',
+    options: ['Beginner', 'Recreational', 'NTRP 3.0', 'NTRP 3.5', 'NTRP 4.0', 'NTRP 4.5+', 'UTR 1-3', 'UTR 4-6', 'UTR 7+'],
+  },
+  {
+    id: 'age',
+    label: 'Age',
+    type: 'number',
+    placeholder: 'Optional',
+    defaultValue: '',
+  },
+  {
+    id: 'height',
+    label: 'Height',
+    type: 'text',
+    placeholder: 'Optional, ex: 5 ft 10',
+    defaultValue: '',
+  },
+  {
+    id: 'weight',
+    label: 'Weight',
+    type: 'text',
+    placeholder: 'Optional',
+    defaultValue: '',
+  },
+  {
+    id: 'playingStyle',
+    label: 'Closest player archetype',
+    type: 'select',
+    defaultValue: 'All-court player',
+    options: ['Heavy topspin baseliner', 'Flat power hitter', 'Counterpuncher', 'All-court player', 'Serve-focused player', 'Beginner/recreational player', 'Arm-sensitive player'],
+  },
+  {
+    id: 'swingSpeed',
+    label: 'Swing speed',
+    type: 'select',
+    defaultValue: 'Medium',
+    options: ['Slow', 'Medium', 'Fast'],
+  },
+  {
+    id: 'topspinLevel',
+    label: 'Topspin level',
+    type: 'range',
+    defaultValue: 6,
+  },
+  {
+    id: 'courtPositionPreference',
+    label: 'Preferred court position',
+    type: 'select',
+    defaultValue: 'Baseline',
+    options: ['Baseline', 'All-court', 'Net/transition'],
+  },
+  {
+    id: 'serveImportance',
+    label: 'Serve importance',
+    type: 'range',
+    defaultValue: 5,
+  },
+  {
+    id: 'powerControlPreference',
+    label: 'Power vs control',
+    type: 'select',
+    defaultValue: 'Balanced',
+    options: ['More power', 'Balanced', 'More control'],
+  },
+  {
+    id: 'painArea',
+    label: 'Pain or injury focus',
+    type: 'select',
+    defaultValue: 'None',
+    options: ['None', 'Elbow', 'Shoulder', 'Wrist', 'Multiple areas'],
+  },
+  {
+    id: 'currentRacket',
+    label: 'Current racket',
+    type: 'text',
+    placeholder: 'Optional',
+    defaultValue: '',
+  },
+  {
+    id: 'currentString',
+    label: 'Current string',
+    type: 'text',
+    placeholder: 'Optional',
+    defaultValue: '',
+  },
+  {
+    id: 'currentTension',
+    label: 'Current tension',
+    type: 'number',
+    placeholder: 'Optional lbs',
+    defaultValue: '',
+  },
+  {
+    id: 'budgetAmount',
+    label: 'Max setup budget',
+    type: 'number',
+    placeholder: 'Optional dollars',
+    defaultValue: '',
+  },
+  {
+    id: 'setupDislikes',
+    label: 'What do you dislike about your setup?',
+    type: 'textarea',
+    placeholder: 'Too stiff, no depth, too much launch, not enough spin...',
+    defaultValue: '',
+  },
+];
+
+export const quizProfileDefaults = Object.fromEntries(quizProfileFields.map((field) => [field.id, field.defaultValue]));
+
 function defaultTraits() {
   return Object.fromEntries(quizSliders.map((slider) => [slider.id, slider.defaultValue * 10]));
 }
@@ -252,7 +367,15 @@ export function scoreQuiz(answers) {
     armIssue: 'None',
     comfortPriority: 0,
     traits: defaultTraits(),
+    profileInputs: { ...quizProfileDefaults },
   };
+
+  quizProfileFields.forEach((field) => {
+    const rawValue = answers[field.id];
+    if (rawValue !== undefined && rawValue !== null && rawValue !== '') {
+      profile.profileInputs[field.id] = rawValue;
+    }
+  });
 
   quizQuestions.forEach((question) => {
     const selectedIndex = answers[question.id];
@@ -278,6 +401,52 @@ export function scoreQuiz(answers) {
       totals[style] += centered * weight;
     });
   });
+
+  const profileInputs = profile.profileInputs;
+  const explicitSpin = Number(profileInputs.topspinLevel);
+  const explicitServe = Number(profileInputs.serveImportance);
+  const explicitBudget = Number(profileInputs.budgetAmount);
+
+  if (Number.isFinite(explicitSpin) && explicitSpin > 0) {
+    profile.traits.spinIntent = Math.min(100, Math.max(10, explicitSpin * 10));
+  }
+
+  if (Number.isFinite(explicitServe) && explicitServe > 0) {
+    profile.traits.serveReliance = Math.min(100, Math.max(10, explicitServe * 10));
+  }
+
+  if (profileInputs.swingSpeed === 'Fast') {
+    profile.traits.riskIntent = Math.max(profile.traits.riskIntent, 64);
+    profile.traits.maneuverabilityNeed = Math.max(profile.traits.maneuverabilityNeed, 58);
+  } else if (profileInputs.swingSpeed === 'Slow') {
+    profile.traits.powerIntent = Math.max(profile.traits.powerIntent, 66);
+    profile.traits.maneuverabilityNeed = Math.max(profile.traits.maneuverabilityNeed, 70);
+  }
+
+  if (profileInputs.powerControlPreference === 'More power') {
+    profile.traits.powerIntent = Math.max(profile.traits.powerIntent, 72);
+    profile.traits.controlIntent = Math.min(profile.traits.controlIntent, 58);
+  } else if (profileInputs.powerControlPreference === 'More control') {
+    profile.traits.controlIntent = Math.max(profile.traits.controlIntent, 74);
+    profile.traits.powerIntent = Math.min(profile.traits.powerIntent, 58);
+  }
+
+  if (profileInputs.courtPositionPreference === 'Net/transition') {
+    profile.traits.netIntent = Math.max(profile.traits.netIntent, 74);
+  } else if (profileInputs.courtPositionPreference === 'Baseline') {
+    profile.traits.netIntent = Math.min(profile.traits.netIntent, 46);
+  }
+
+  if (profileInputs.painArea && profileInputs.painArea !== 'None') {
+    profile.comfortPriority = Math.max(profile.comfortPriority, 2);
+    profile.armIssue = `${profileInputs.painArea} pain`;
+    profile.traits.comfortNeed = Math.max(profile.traits.comfortNeed, 86);
+  }
+
+  if (Number.isFinite(explicitBudget) && explicitBudget > 0) {
+    profile.maxSetupPrice = explicitBudget;
+    profile.budgetTier = explicitBudget < 260 ? 'Value' : explicitBudget > 380 ? 'Premium' : 'Balanced';
+  }
 
   if (profile.traits.comfortNeed >= 78) {
     profile.comfortPriority = Math.max(profile.comfortPriority, 2);
