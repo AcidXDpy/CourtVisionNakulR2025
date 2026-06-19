@@ -1,10 +1,12 @@
-import { Cable, Home, Target, Trophy } from 'lucide-react';
+import { Cable, HeartHandshake, Home, Recycle, Target, Trophy } from 'lucide-react';
 
 const links = [
   { label: 'Home', id: 'home', icon: Home },
   { label: 'Quiz', id: 'quiz', icon: Target },
   { label: 'Gear', id: 'gear', icon: Trophy },
   { label: 'Strings', id: 'strings', icon: Cable },
+  { label: 'Forward', id: 'play-it-forward', icon: HeartHandshake, href: '/play-it-forward' },
+  { label: 'Recycle', id: 'recycle', icon: Recycle, href: '/recycle' },
 ];
 
 export default function Navbar({ activePage }) {
@@ -19,13 +21,13 @@ export default function Navbar({ activePage }) {
           </span>
         </a>
         <div className="hidden items-center gap-1 lg:flex">
-          {links.map(({ label, id, icon: Icon }) => {
+          {links.map(({ label, id, icon: Icon, href }) => {
             const active = activePage === id;
 
             return (
               <a
                 key={id}
-                href={`#${id}`}
+                href={href || `#${id}`}
                 className={`focus-ring flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition ${
                   active ? 'bg-court-blue text-white shadow-card' : 'text-slate-600 hover:bg-court-blue/10 hover:text-court-ink'
                 }`}

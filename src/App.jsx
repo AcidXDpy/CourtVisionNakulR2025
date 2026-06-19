@@ -1,16 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
+import CourtVisionImpact from './components/CourtVisionImpact.jsx';
 import GearStory from './components/GearStory.jsx';
 import Hero from './components/Hero.jsx';
 import Navbar from './components/Navbar.jsx';
 import PlaystyleQuiz from './components/PlaystyleQuiz.jsx';
+import PlayItForwardPage from './components/PlayItForwardPage.jsx';
 import RacketFinder from './components/RacketFinder.jsx';
+import RecycleBallsPage from './components/RecycleBallsPage.jsx';
 import ResultsDashboard from './components/ResultsDashboard.jsx';
 import StringFinder from './components/StringFinder.jsx';
 import { playstyleNames } from './data/playstyles.js';
 
-const routes = new Set(['home', 'quiz', 'gear', 'strings', 'results']);
+const routes = new Set(['home', 'quiz', 'gear', 'strings', 'play-it-forward', 'recycle', 'results']);
+const pathRoutes = new Map([
+  ['/play-it-forward', 'play-it-forward'],
+  ['/recycle', 'recycle'],
+]);
 
 function readRoute() {
+  const pathRoute = pathRoutes.get(window.location.pathname);
+  if (pathRoute) return pathRoute;
+
   const hash = window.location.hash.replace('#', '');
   if (routes.has(hash)) return hash;
 
@@ -46,7 +56,11 @@ export default function App() {
 
     syncRoute();
     window.addEventListener('hashchange', syncRoute);
-    return () => window.removeEventListener('hashchange', syncRoute);
+    window.addEventListener('popstate', syncRoute);
+    return () => {
+      window.removeEventListener('hashchange', syncRoute);
+      window.removeEventListener('popstate', syncRoute);
+    };
   }, []);
 
   function startQuiz() {
@@ -75,6 +89,7 @@ export default function App() {
         {activePage === 'home' && (
           <>
             <Hero onStartQuiz={startQuiz} />
+            <CourtVisionImpact />
             <GearStory />
           </>
         )}
@@ -86,6 +101,8 @@ export default function App() {
         )}
         {activePage === 'gear' && <RacketFinder selectedStyle={activeStyle} setSelectedStyle={setGlobalStyle} result={result} />}
         {activePage === 'strings' && <StringFinder selectedStyle={activeStyle} setSelectedStyle={setGlobalStyle} result={result} />}
+        {activePage === 'play-it-forward' && <PlayItForwardPage />}
+        {activePage === 'recycle' && <RecycleBallsPage />}
       </main>
       <footer className="border-t border-court-line bg-white px-4 py-8 text-center text-sm text-slate-500">
         CourtVision MVP - explainable gear recommendations, local feedback data, ready for Vercel.
