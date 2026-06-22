@@ -2,6 +2,7 @@ import { CheckCircle2, Download, ShieldCheck, Target, Wallet, Zap } from 'lucide
 import { useEffect, useState } from 'react';
 import { playstyles } from '../data/playstyles.js';
 import { buildAdvancedRecommendations, loadFeedback, money, saveFeedback, STRINGING_LABOR_ESTIMATE } from '../data/recommendationModel.js';
+import { saveRecommendationFeedback } from '../lib/supabaseClient.js';
 import Card from './Card.jsx';
 
 const scoreLabels = {
@@ -140,6 +141,7 @@ function FeedbackPanel({ option, result }) {
     const next = [...feedback.filter((item) => item.setupId !== setupId), nextEntry];
     setFeedback(next);
     saveFeedback(next);
+    saveRecommendationFeedback(nextEntry);
     window.dispatchEvent(new Event('courtvision-feedback'));
   }
 

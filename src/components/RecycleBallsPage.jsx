@@ -1,6 +1,7 @@
 import { ArrowRight, Building2, GraduationCap, Home, PawPrint, Recycle, School } from 'lucide-react';
 import Card from './Card.jsx';
 import { Field, ImpactFeatureCard, ImpactStatCard, useLocalForm } from './ImpactShared.jsx';
+import { saveBallDonation } from '../lib/supabaseClient.js';
 
 const ballDonationDefaults = {
   donorName: '',
@@ -20,7 +21,7 @@ const reuseCards = [
 ];
 
 function BallDonationForm() {
-  const { values, success, updateValue, submit } = useLocalForm(ballDonationDefaults, 'CourtVision ball donation');
+  const { values, success, remoteStatus, updateValue, submit } = useLocalForm(ballDonationDefaults, 'Gear Vision ball donation', saveBallDonation);
 
   return (
     <Card as="form" onSubmit={submit} className="bg-white">
@@ -29,7 +30,7 @@ function BallDonationForm() {
         <h2 className="text-2xl font-black text-court-ink">Donate Balls</h2>
       </div>
       <p className="mt-3 text-sm leading-6 text-slate-600">
-        Share how many used tennis balls you have and where pickup or dropoff would make sense. This local form logs submissions for now.
+        Share how many used tennis balls you have and where pickup or dropoff would make sense. Submissions can save to the Gear Vision Supabase dataset when the backend keys are configured.
       </p>
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <Field label="Donor name" name="donorName" value={values.donorName} onChange={updateValue} />
@@ -56,7 +57,7 @@ function BallDonationForm() {
       </div>
       {success && (
         <p className="mt-4 rounded-lg border border-court-green/30 bg-court-green/10 p-3 text-sm font-bold text-court-ink">
-          Ball donation logged locally. A backend can later route this to a pickup/dropoff workflow.
+          {remoteStatus === 'saved' ? 'Ball donation saved to Gear Vision.' : remoteStatus === 'error' ? 'Donation saved locally, but Supabase could not be reached.' : 'Donation received locally. Add Supabase keys to turn this into a live submission.'}
         </p>
       )}
       <button className="focus-ring mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-court-green px-5 py-3 font-black text-court-ink transition hover:bg-court-blue hover:text-white">
@@ -73,11 +74,11 @@ export default function RecycleBallsPage() {
         <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
           <div>
             <p className="inline-flex rounded-lg border border-court-lime/40 bg-court-lime/10 px-3 py-1 text-sm font-bold uppercase tracking-[0.16em] text-court-blue">
-              CourtVision Impact
+              Gear Vision Impact
             </p>
             <h1 className="mt-4 text-5xl font-black leading-tight text-court-ink sm:text-6xl">Give Tennis Balls a Second Life</h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
-              Donate dead or used tennis balls so CourtVision can help reduce waste and pass them to animal shelters, senior living homes, schools, and other local organizations.
+              Donate dead or used tennis balls so Gear Vision can help reduce waste and pass them to animal shelters, senior living homes, schools, and other local organizations.
             </p>
             <a href="#ball-donation" className="focus-ring action-button mt-7 inline-flex items-center justify-center gap-2 rounded-lg bg-court-green px-5 py-3 font-black text-court-ink transition hover:bg-court-blue hover:text-white">
               Donate Used Balls <Recycle size={18} />

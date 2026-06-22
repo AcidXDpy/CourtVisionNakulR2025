@@ -1,6 +1,7 @@
 import { ArrowRight, Gift, HeartHandshake, Mail, MapPin, PackageCheck, UserRound } from 'lucide-react';
 import Card from './Card.jsx';
 import { DonationTierCard, Field, ImpactStatCard, useLocalForm } from './ImpactShared.jsx';
+import { savePlayerNomination } from '../lib/supabaseClient.js';
 
 const nominationDefaults = {
   playerName: '',
@@ -20,7 +21,7 @@ const tiers = [
 ];
 
 function PlayerNominationForm() {
-  const { values, success, updateValue, submit } = useLocalForm(nominationDefaults, 'CourtVision player nomination');
+  const { values, success, remoteStatus, updateValue, submit } = useLocalForm(nominationDefaults, 'Gear Vision player nomination', savePlayerNomination);
 
   return (
     <Card as="form" onSubmit={submit} className="bg-white">
@@ -29,7 +30,7 @@ function PlayerNominationForm() {
         <h2 className="text-2xl font-black text-court-ink">Nominate a Player</h2>
       </div>
       <p className="mt-3 text-sm leading-6 text-slate-600">
-        Tell us about a local player who could use help getting reliable gear. This is an early community form, so submissions are saved locally for now.
+        Tell us about a local player who could use help getting reliable gear. Submissions can save to the Gear Vision Supabase dataset when the backend keys are configured.
       </p>
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <Field label="Player name" name="playerName" value={values.playerName} onChange={updateValue} />
@@ -48,7 +49,7 @@ function PlayerNominationForm() {
       </div>
       {success && (
         <p className="mt-4 rounded-lg border border-court-green/30 bg-court-green/10 p-3 text-sm font-bold text-court-ink">
-          Nomination received locally. When a backend is added, this will become a real submission flow.
+          {remoteStatus === 'saved' ? 'Nomination saved to Gear Vision.' : remoteStatus === 'error' ? 'Nomination saved locally, but Supabase could not be reached.' : 'Nomination received locally. Add Supabase keys to turn this into a live submission.'}
         </p>
       )}
       <button className="focus-ring mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-court-green px-5 py-3 font-black text-court-ink transition hover:bg-court-blue hover:text-white">
@@ -65,11 +66,11 @@ export default function PlayItForwardPage() {
         <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
           <div>
             <p className="inline-flex rounded-lg border border-court-lime/40 bg-court-lime/10 px-3 py-1 text-sm font-bold uppercase tracking-[0.16em] text-court-blue">
-              CourtVision Impact
+              Gear Vision Impact
             </p>
             <h1 className="mt-4 text-5xl font-black leading-tight text-court-ink sm:text-6xl">Play It Forward</h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
-              CourtVision can help raise money to sponsor tennis gear setups for players who cannot afford expensive rackets, strings, shoes, and accessories.
+              Gear Vision can help raise money to sponsor tennis gear setups for players who cannot afford expensive rackets, strings, shoes, and accessories.
             </p>
             <a href="#player-nomination" className="focus-ring action-button mt-7 inline-flex items-center justify-center gap-2 rounded-lg bg-court-green px-5 py-3 font-black text-court-ink transition hover:bg-court-blue hover:text-white">
               Support a Player <HeartHandshake size={18} />

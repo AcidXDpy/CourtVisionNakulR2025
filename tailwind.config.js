@@ -12,7 +12,7 @@ export default {
           lime: '#8CFF00',
           blue: '#047EA8',
           ink: '#070B0E',
-          panel: '#FFFFFF',
+          panel: '#07151D',
           line: '#E7ECEC',
         },
       },

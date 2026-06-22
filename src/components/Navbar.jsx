@@ -13,10 +13,12 @@ export default function Navbar({ activePage }) {
   return (
     <header className="sticky top-0 z-40 border-b border-court-line bg-white/90 text-court-ink backdrop-blur-xl">
       <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
-        <a href="#home" className="flex items-center gap-3">
-          <span className="grid h-10 w-10 place-items-center rounded-lg bg-gradient-to-br from-court-blue to-slate-200 text-court-ink font-black">CV</span>
+        <a href="/#home" className="flex items-center gap-3">
+          <span className="grid h-10 w-10 place-items-center overflow-hidden rounded-lg border border-court-blue/20 bg-court-blue shadow-sm">
+            <img src="/images/brand/gear-vision-mark.png" alt="Gear Vision logo" className="h-full w-full object-cover" />
+          </span>
           <span>
-            <span className="block text-lg font-black tracking-wide">CourtVision</span>
+            <span className="block text-lg font-black tracking-wide">Gear Vision</span>
             <span className="hidden text-xs text-slate-500 sm:block">Tennis gear advisor</span>
           </span>
         </a>
@@ -27,7 +29,7 @@ export default function Navbar({ activePage }) {
             return (
               <a
                 key={id}
-                href={href || `#${id}`}
+                href={href || `/#${id}`}
                 className={`focus-ring flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition ${
                   active ? 'bg-court-blue text-white shadow-card' : 'text-slate-600 hover:bg-court-blue/10 hover:text-court-ink'
                 }`}
@@ -39,7 +41,7 @@ export default function Navbar({ activePage }) {
             );
           })}
         </div>
-        <a href="#quiz" className="focus-ring rounded-lg bg-court-green px-4 py-2 text-sm font-bold text-court-ink transition hover:bg-court-blue hover:text-white">
+        <a href="/#quiz" className="focus-ring rounded-lg bg-court-green px-4 py-2 text-sm font-bold text-court-ink transition hover:bg-court-blue hover:text-white">
           Start Quiz
         </a>
       </nav>

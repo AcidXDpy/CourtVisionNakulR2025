@@ -10,7 +10,7 @@ export default function Hero({ onStartQuiz }) {
             Gear intelligence
           </p>
           <h1 className="max-w-4xl text-5xl font-black leading-tight text-court-ink sm:text-6xl lg:text-7xl">
-            CourtVision
+            Gear Vision
             <span className="block accent-text">for smarter tennis gear.</span>
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">

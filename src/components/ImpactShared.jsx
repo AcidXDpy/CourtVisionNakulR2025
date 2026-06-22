@@ -52,22 +52,27 @@ export function Field({ label, name, value, onChange, type = 'text', required = 
   );
 }
 
-export function useLocalForm(initialValues, logLabel) {
+export function useLocalForm(initialValues, logLabel, saveRemote) {
   const [values, setValues] = useState(initialValues);
   const [success, setSuccess] = useState(false);
+  const [remoteStatus, setRemoteStatus] = useState('idle');
 
   function updateValue(event) {
     const { name, value } = event.target;
     setValues((current) => ({ ...current, [name]: value }));
     setSuccess(false);
+    setRemoteStatus('idle');
   }
 
-  function submit(event) {
+  async function submit(event) {
     event.preventDefault();
     console.log(logLabel, values);
+    setRemoteStatus('saving');
+    const result = saveRemote ? await saveRemote(values) : { ok: false, skipped: true };
+    setRemoteStatus(result.ok ? 'saved' : result.skipped ? 'local' : 'error');
     setValues(initialValues);
     setSuccess(true);
   }
 
-  return { values, success, updateValue, submit };
+  return { values, success, remoteStatus, updateValue, submit };
 }

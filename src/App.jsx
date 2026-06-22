@@ -10,6 +10,7 @@ import RecycleBallsPage from './components/RecycleBallsPage.jsx';
 import ResultsDashboard from './components/ResultsDashboard.jsx';
 import StringFinder from './components/StringFinder.jsx';
 import { playstyleNames } from './data/playstyles.js';
+import { saveQuizSubmission } from './lib/supabaseClient.js';
 
 const routes = new Set(['home', 'quiz', 'gear', 'strings', 'play-it-forward', 'recycle', 'results']);
 const pathRoutes = new Map([
@@ -18,14 +19,14 @@ const pathRoutes = new Map([
 ]);
 
 function readRoute() {
-  const pathRoute = pathRoutes.get(window.location.pathname);
-  if (pathRoute) return pathRoute;
-
   const hash = window.location.hash.replace('#', '');
   if (routes.has(hash)) return hash;
 
+  const pathRoute = pathRoutes.get(window.location.pathname);
+  if (pathRoute) return pathRoute;
+
   if (hash) {
-    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#home`);
+    window.history.replaceState(null, '', `${window.location.origin}/#home`);
   }
 
   return 'home';
@@ -70,6 +71,7 @@ export default function App() {
   function completeQuiz(nextResult) {
     setResult(nextResult);
     setManualStyle(nextResult.primary);
+    saveQuizSubmission(nextResult);
     window.location.hash = 'results';
   }
 
@@ -105,7 +107,7 @@ export default function App() {
         {activePage === 'recycle' && <RecycleBallsPage />}
       </main>
       <footer className="border-t border-court-line bg-white px-4 py-8 text-center text-sm text-slate-500">
-        CourtVision MVP - explainable gear recommendations, local feedback data, ready for Vercel.
+        Gear Vision MVP - explainable gear recommendations, local feedback data, ready for Vercel.
       </footer>
     </div>
   );

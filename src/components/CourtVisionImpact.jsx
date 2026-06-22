@@ -24,13 +24,13 @@ export default function CourtVisionImpact() {
       <div className="mx-auto max-w-7xl">
         <div className="mb-8 grid gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.18em] text-court-blue">CourtVision Impact</p>
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-court-blue">Gear Vision Impact</p>
             <h2 className="mt-2 max-w-3xl text-4xl font-black leading-tight text-court-ink sm:text-5xl">
               Gear advice should lead to gear access.
             </h2>
           </div>
           <p className="max-w-2xl text-base leading-8 text-slate-600 lg:justify-self-end">
-            CourtVision can grow beyond recommendations by helping local players get equipment and giving used tennis balls a practical second life.
+            Gear Vision can grow beyond recommendations by helping local players get equipment and giving used tennis balls a practical second life.
           </p>
         </div>
 
