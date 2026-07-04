@@ -20,6 +20,12 @@ const tiers = [
   { amount: '$150+', title: 'Full Setup Support', description: 'Goes toward a racket, string setup, shoes, bag, or bundled gear support for a player.' },
 ];
 
+const processSteps = [
+  { title: 'Nominate', text: 'A player, coach, parent, or teammate explains the current setup and gear need.' },
+  { title: 'Review', text: 'Gear Vision uses the recommendation model and budget context to understand what support would help most.' },
+  { title: 'Fulfill', text: 'Approved support can become strings, grips, accessories, shoes, or a full setup when resources allow.' },
+];
+
 function PlayerNominationForm() {
   const { values, success, remoteStatus, updateValue, submit } = useLocalForm(nominationDefaults, 'Gear Vision player nomination', savePlayerNomination);
 
@@ -100,6 +106,22 @@ export default function PlayItForwardPage() {
         <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {tiers.map((tier) => <DonationTierCard key={tier.amount} {...tier} />)}
         </div>
+
+        <Card className="mt-10 bg-white">
+          <h2 className="text-2xl font-black text-court-ink">How gear support works</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+            The goal is not to pretend this is a huge nonprofit. It is a practical local pipeline: identify real needs, match them to useful setups, and track outcomes honestly.
+          </p>
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            {processSteps.map((step, index) => (
+              <div key={step.title} className="rounded-lg border border-court-line bg-slate-50 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-court-blue">Step {index + 1}</p>
+                <h3 className="mt-2 text-lg font-black text-court-ink">{step.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{step.text}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
 
         <div className="mt-10 grid gap-4 md:grid-cols-3">
           <ImpactStatCard label="Dollars raised" value="$0" caption="Ready for the first local drive or sponsorship partner." />

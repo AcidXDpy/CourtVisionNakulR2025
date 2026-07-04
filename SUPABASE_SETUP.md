@@ -1,12 +1,14 @@
-# CourtVision Supabase Setup
+# Gear Vision Supabase Setup
 
-CourtVision can run without Supabase keys, but adding a free Supabase project turns quiz results, recommendation feedback, player nominations, and ball donations into a real dataset.
+Gear Vision can run without Supabase keys, but adding a free Supabase project turns opt-in quiz results, recommendation feedback, player nominations, and ball donations into a real dataset.
 
 ## 1. Create the project
 
 1. Go to Supabase and create a free project.
 2. Open SQL Editor.
 3. Paste and run `supabase/schema.sql`.
+
+Run the schema again after pulling new backend changes. It uses `if not exists` where possible, so it can safely add new columns and refresh the public aggregate dashboard view without wiping existing rows.
 
 ## 2. Add local environment variables
 
@@ -31,11 +33,12 @@ In Vercel:
 
 ## 4. What gets saved
 
-- `quiz_submissions`: player profile, traits, playstyle scores, and recommendation snapshot.
-- `recommendation_feedback`: “Would try” and “Feels accurate” feedback from results.
+- `quiz_submissions`: anonymous player profile, traits, playstyle scores, consent flag, and recommendation snapshot.
+- `recommendation_feedback`: structured fit feedback, 1-10 ratings, mismatch reasons, actual setup notes, and consent flag.
 - `player_nominations`: Play It Forward nomination form.
 - `ball_donations`: Recycle Tennis Balls donation form.
 - `impact_stats`: public read table for future impact counters.
+- `public_dashboard_metrics`: public-safe aggregate view for the Impact dashboard. It does not expose names, emails, comments, or private form details.
 
 ## 5. Free-tier MVP note
 

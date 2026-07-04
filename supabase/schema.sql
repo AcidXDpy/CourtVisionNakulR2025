@@ -19,6 +19,10 @@ create table if not exists public.quiz_submissions (
   recommendations jsonb not null default '{}'::jsonb
 );
 
+alter table public.quiz_submissions
+  add column if not exists consent_to_research boolean not null default false,
+  add column if not exists anonymous_session_id text;
+
 create table if not exists public.recommendation_feedback (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
@@ -36,6 +40,16 @@ create table if not exists public.recommendation_feedback (
   accurate text,
   payload jsonb not null default '{}'::jsonb
 );
+
+alter table public.recommendation_feedback
+  add column if not exists anonymous_session_id text,
+  add column if not exists consent_to_research boolean not null default false,
+  add column if not exists accuracy_rating integer,
+  add column if not exists comfort_rating integer,
+  add column if not exists confidence_rating integer,
+  add column if not exists mismatch_reasons text[] not null default '{}'::text[],
+  add column if not exists comments text,
+  add column if not exists actual_setup_used text;
 
 create table if not exists public.player_nominations (
   id uuid primary key default gen_random_uuid(),
@@ -121,3 +135,75 @@ on public.impact_stats
 for select
 to anon
 using (true);
+
+create or replace view public.public_dashboard_metrics as
+select
+  (select count(*)::int from public.quiz_submissions where consent_to_research = true) as quiz_submissions,
+  (select count(*)::int from public.recommendation_feedback where consent_to_research = true) as feedback_count,
+  (select count(*)::int from public.player_nominations) as player_nominations,
+  (select count(*)::int from public.ball_donations) as ball_donations,
+  (select coalesce(sum(ball_count), 0)::int from public.ball_donations) as balls_collected,
+  (select coalesce(round(avg(case when would_try = 'yes' then 1 else 0 end) * 100), 0)::int from public.recommendation_feedback where consent_to_research = true and would_try is not null) as would_try_rate,
+  (select coalesce(round(avg(case when accurate = 'yes' then 1 else 0 end) * 100), 0)::int from public.recommendation_feedback where consent_to_research = true and accurate is not null) as accuracy_rate,
+  (select coalesce(round(avg(final_score)), 0)::int from public.recommendation_feedback where consent_to_research = true and final_score is not null) as average_fit_score,
+  (
+    select coalesce(jsonb_agg(jsonb_build_object('name', archetype, 'value', row_count) order by row_count desc), '[]'::jsonb)
+    from (
+      select coalesce(recommendations->>'archetype', 'Unknown') as archetype, count(*)::int as row_count
+      from public.quiz_submissions
+      where consent_to_research = true
+      group by 1
+    ) archetypes
+  ) as archetype_distribution,
+  (
+    select coalesce(jsonb_agg(jsonb_build_object('name', budget_tier, 'value', row_count) order by row_count desc), '[]'::jsonb)
+    from (
+      select coalesce(budget_tier, 'Unknown') as budget_tier, count(*)::int as row_count
+      from public.quiz_submissions
+      where consent_to_research = true
+      group by 1
+    ) budgets
+  ) as budget_distribution,
+  (
+    select coalesce(jsonb_agg(jsonb_build_object('bucket', bucket, 'count', row_count, 'accuracy', accuracy_rate) order by bucket), '[]'::jsonb)
+    from (
+      select
+        case
+          when confidence_rating is null then 'Unrated'
+          when confidence_rating <= 3 then '1-3'
+          when confidence_rating <= 7 then '4-7'
+          else '8-10'
+        end as bucket,
+        count(*)::int as row_count,
+        coalesce(round(avg(case when accurate = 'yes' then 1 else 0 end) * 100), 0)::int as accuracy_rate
+      from public.recommendation_feedback
+      where consent_to_research = true
+      group by 1
+    ) calibration
+  ) as confidence_calibration,
+  (
+    select coalesce(jsonb_agg(jsonb_build_object('name', reason, 'value', row_count) order by row_count desc), '[]'::jsonb)
+    from (
+      select reason, count(*)::int as row_count
+      from public.recommendation_feedback, unnest(mismatch_reasons) as reason
+      where consent_to_research = true
+      group by reason
+      order by row_count desc
+      limit 8
+    ) reasons
+  ) as mismatch_reasons,
+  (
+    select jsonb_build_object(
+      'playersHelped', players_helped,
+      'setupsDonated', setups_donated,
+      'dollarsRaised', dollars_raised,
+      'ballsCollected', balls_collected,
+      'sheltersSupported', shelters_supported,
+      'seniorHomesSupported', senior_homes_supported,
+      'organizationsHelped', organizations_helped
+    )
+    from public.impact_stats
+    where id = 'current'
+  ) as impact_stats;
+
+grant select on public.public_dashboard_metrics to anon;

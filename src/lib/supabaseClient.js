@@ -4,6 +4,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+const SESSION_STORAGE_KEY = 'gear_vision_anonymous_session_id';
 
 function cleanBaseUrl(url) {
   return String(url || '').replace(/\/$/, '');
@@ -37,6 +38,44 @@ async function insertRow(tableName, payload) {
   } catch (error) {
     console.warn(`[Gear Vision] Supabase insert error for ${tableName}:`, error);
     return { ok: false, error };
+  }
+}
+
+async function selectRows(path) {
+  if (!isSupabaseConfigured) {
+    return { ok: false, skipped: true, data: null };
+  }
+
+  try {
+    const response = await fetch(`${cleanBaseUrl(supabaseUrl)}/rest/v1/${path}`, {
+      headers: {
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${supabaseAnonKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      const message = await response.text();
+      console.warn(`[Gear Vision] Supabase read failed for ${path}:`, message);
+      return { ok: false, error: message, data: null };
+    }
+
+    return { ok: true, data: await response.json() };
+  } catch (error) {
+    console.warn(`[Gear Vision] Supabase read error for ${path}:`, error);
+    return { ok: false, error, data: null };
+  }
+}
+
+export function getAnonymousSessionId() {
+  try {
+    const current = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    if (current) return current;
+    const next = `gv_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    window.localStorage.setItem(SESSION_STORAGE_KEY, next);
+    return next;
+  } catch {
+    return `gv_${Date.now()}`;
   }
 }
 
@@ -74,8 +113,11 @@ function recommendationSnapshot(result) {
 
 export async function saveQuizSubmission(result) {
   if (!result) return { ok: false, skipped: true };
+  if (!result.consentToResearch) return { ok: false, skipped: true };
 
   return insertRow('quiz_submissions', {
+    anonymous_session_id: getAnonymousSessionId(),
+    consent_to_research: true,
     primary_playstyle: result.primary,
     secondary_playstyle: result.secondary,
     budget_tier: result.budgetTier,
@@ -90,7 +132,11 @@ export async function saveQuizSubmission(result) {
 }
 
 export async function saveRecommendationFeedback(feedback) {
+  if (!feedback?.consentToResearch) return { ok: false, skipped: true };
+
   return insertRow('recommendation_feedback', {
+    anonymous_session_id: getAnonymousSessionId(),
+    consent_to_research: true,
     setup_id: feedback.setupId,
     setup_label: feedback.setupLabel,
     racket: feedback.racket,
@@ -103,6 +149,12 @@ export async function saveRecommendationFeedback(feedback) {
     total_price: Number(feedback.total || 0),
     would_try: feedback.wouldTry || null,
     accurate: feedback.accurate || null,
+    accuracy_rating: feedback.accuracyRating ? Number(feedback.accuracyRating) : null,
+    comfort_rating: feedback.comfortRating ? Number(feedback.comfortRating) : null,
+    confidence_rating: feedback.confidenceRating ? Number(feedback.confidenceRating) : null,
+    mismatch_reasons: feedback.mismatchReasons || [],
+    comments: feedback.comments || null,
+    actual_setup_used: feedback.actualSetupUsed || null,
     payload: feedback,
   });
 }
@@ -131,4 +183,9 @@ export async function saveBallDonation(values) {
     notes: values.notes,
     payload: values,
   });
+}
+
+export async function fetchPublicDashboardMetrics() {
+  const result = await selectRows('public_dashboard_metrics?select=*');
+  return result.ok ? { ok: true, data: result.data?.[0] || null } : result;
 }

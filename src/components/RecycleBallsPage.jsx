@@ -20,6 +20,12 @@ const reuseCards = [
   { icon: GraduationCap, title: 'Beginner programs', description: 'Practice balls are useful for first-time players, clinics, and low-pressure drills.' },
 ];
 
+const recycleSteps = [
+  { title: 'Collect', text: 'Players, clubs, and schools submit how many used balls they can donate.' },
+  { title: 'Sort', text: 'Balls can be grouped by reuse path: shelters, senior homes, schools, or beginner programs.' },
+  { title: 'Redirect', text: 'Gear Vision tracks public aggregate impact while keeping donor contact logistics private.' },
+];
+
 function BallDonationForm() {
   const { values, success, remoteStatus, updateValue, submit } = useLocalForm(ballDonationDefaults, 'Gear Vision ball donation', saveBallDonation);
 
@@ -103,6 +109,22 @@ export default function RecycleBallsPage() {
         <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {reuseCards.map((card) => <ImpactFeatureCard key={card.title} {...card} />)}
         </div>
+
+        <Card className="mt-10 bg-white">
+          <h2 className="text-2xl font-black text-court-ink">How ball recycling works</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+            This turns a common tennis waste stream into a measurable community loop: collect used balls, find practical second uses, and track aggregate impact.
+          </p>
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            {recycleSteps.map((step, index) => (
+              <div key={step.title} className="rounded-lg border border-court-line bg-slate-50 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-court-blue">Step {index + 1}</p>
+                <h3 className="mt-2 text-lg font-black text-court-ink">{step.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{step.text}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
 
         <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <ImpactStatCard label="Balls collected" value="0" caption="The first collection drive can start with local courts or school teams." />

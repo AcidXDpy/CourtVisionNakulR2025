@@ -32,7 +32,10 @@ export default function PlaystyleQuiz({ answers, setAnswers, onComplete, onReset
     if (!complete) return;
     const sliderDefaults = Object.fromEntries(quizSliders.map((slider) => [slider.id, slider.defaultValue]));
     const profileDefaults = Object.fromEntries(quizProfileFields.map((field) => [field.id, field.defaultValue]));
-    onComplete(scoreQuiz({ ...sliderDefaults, ...profileDefaults, ...answers }));
+    onComplete({
+      ...scoreQuiz({ ...sliderDefaults, ...profileDefaults, ...answers }),
+      consentToResearch: Boolean(answers.researchConsent),
+    });
   }
 
   function renderProfileField(field) {
@@ -207,6 +210,20 @@ export default function PlaystyleQuiz({ answers, setAnswers, onComplete, onReset
         </div>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <label className="flex max-w-3xl items-start gap-3 rounded-lg border border-court-line bg-slate-50 p-4 text-sm leading-6 text-slate-600 sm:mr-auto">
+            <input
+              type="checkbox"
+              checked={Boolean(answers.researchConsent)}
+              onChange={(event) => setAnswers((current) => ({ ...current, researchConsent: event.target.checked }))}
+              className="mt-1 h-4 w-4 shrink-0 accent-court-blue"
+            />
+            <span>
+              <span className="font-bold text-court-ink">Share anonymous quiz data for model improvement.</span> Optional: no name or email is attached to quiz data, and Gear Vision uses this to evaluate recommendation accuracy over time.
+            </span>
+          </label>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
           <button
             onClick={finishQuiz}
             disabled={!complete}

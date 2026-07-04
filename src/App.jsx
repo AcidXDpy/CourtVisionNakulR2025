@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import CourtVisionImpact from './components/CourtVisionImpact.jsx';
 import GearStory from './components/GearStory.jsx';
 import Hero from './components/Hero.jsx';
+import ImpactDashboardPage from './components/ImpactDashboardPage.jsx';
+import MethodologyPage from './components/MethodologyPage.jsx';
 import Navbar from './components/Navbar.jsx';
 import PlaystyleQuiz from './components/PlaystyleQuiz.jsx';
 import PlayItForwardPage from './components/PlayItForwardPage.jsx';
@@ -12,8 +14,10 @@ import StringFinder from './components/StringFinder.jsx';
 import { playstyleNames } from './data/playstyles.js';
 import { saveQuizSubmission } from './lib/supabaseClient.js';
 
-const routes = new Set(['home', 'quiz', 'gear', 'strings', 'play-it-forward', 'recycle', 'results']);
+const routes = new Set(['home', 'quiz', 'gear', 'strings', 'methodology', 'impact', 'play-it-forward', 'recycle', 'results']);
 const pathRoutes = new Map([
+  ['/methodology', 'methodology'],
+  ['/impact', 'impact'],
   ['/play-it-forward', 'play-it-forward'],
   ['/recycle', 'recycle'],
 ]);
@@ -103,6 +107,8 @@ export default function App() {
         )}
         {activePage === 'gear' && <RacketFinder selectedStyle={activeStyle} setSelectedStyle={setGlobalStyle} result={result} />}
         {activePage === 'strings' && <StringFinder selectedStyle={activeStyle} setSelectedStyle={setGlobalStyle} result={result} />}
+        {activePage === 'methodology' && <MethodologyPage />}
+        {activePage === 'impact' && <ImpactDashboardPage />}
         {activePage === 'play-it-forward' && <PlayItForwardPage />}
         {activePage === 'recycle' && <RecycleBallsPage />}
       </main>

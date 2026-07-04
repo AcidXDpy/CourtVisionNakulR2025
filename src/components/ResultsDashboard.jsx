@@ -115,6 +115,17 @@ function RankedFitCard({ item, type }) {
 
 function FeedbackPanel({ option, result }) {
   const [feedback, setFeedback] = useState([]);
+  const [draft, setDraft] = useState({
+    wouldTry: '',
+    accurate: '',
+    accuracyRating: 7,
+    comfortRating: 7,
+    confidenceRating: 7,
+    mismatchReasons: [],
+    comments: '',
+    actualSetupUsed: '',
+    consentToResearch: Boolean(result.consentToResearch),
+  });
   const setupId = `${option.racket.name}|${option.string.name}|${result.primary}`;
   const current = feedback.find((item) => item.setupId === setupId);
 
@@ -122,7 +133,21 @@ function FeedbackPanel({ option, result }) {
     setFeedback(loadFeedback());
   }, []);
 
-  function recordFeedback(field, value) {
+  function updateDraft(field, value) {
+    setDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
+  }
+
+  function toggleMismatch(reason) {
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      mismatchReasons: currentDraft.mismatchReasons.includes(reason)
+        ? currentDraft.mismatchReasons.filter((item) => item !== reason)
+        : [...currentDraft.mismatchReasons, reason],
+    }));
+  }
+
+  function recordFeedback(event) {
+    event.preventDefault();
     const nextEntry = {
       setupId,
       setupLabel: option.label,
@@ -136,7 +161,7 @@ function FeedbackPanel({ option, result }) {
       total: option.total,
       createdAt: new Date().toISOString(),
       ...(current || {}),
-      [field]: value,
+      ...draft,
     };
     const next = [...feedback.filter((item) => item.setupId !== setupId), nextEntry];
     setFeedback(next);
@@ -146,17 +171,64 @@ function FeedbackPanel({ option, result }) {
   }
 
   return (
-    <div className="mt-4 rounded-lg border border-court-line bg-white p-3">
+    <form onSubmit={recordFeedback} className="mt-4 rounded-lg border border-court-line bg-white p-3">
       <p className="text-xs font-bold uppercase tracking-[0.14em] text-court-blue">Improve future fits</p>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        <button onClick={() => recordFeedback('wouldTry', 'yes')} className={`focus-ring rounded-lg px-3 py-2 text-xs font-bold ${current?.wouldTry === 'yes' ? 'bg-court-green text-court-ink' : 'bg-slate-50 text-slate-600'}`}>
-          Would try
+      <div className="mt-3 grid gap-3">
+        <div className="grid gap-2 sm:grid-cols-2">
+          <label className="text-xs font-bold text-slate-600">
+            Would you try it?
+            <select value={draft.wouldTry} onChange={(event) => updateDraft('wouldTry', event.target.value)} className="mt-1 w-full rounded-lg border border-court-line bg-white px-3 py-2 text-court-ink">
+              <option value="">Choose</option>
+              <option value="yes">Yes</option>
+              <option value="maybe">Maybe</option>
+              <option value="no">No</option>
+            </select>
+          </label>
+          <label className="text-xs font-bold text-slate-600">
+            Did it feel accurate?
+            <select value={draft.accurate} onChange={(event) => updateDraft('accurate', event.target.value)} className="mt-1 w-full rounded-lg border border-court-line bg-white px-3 py-2 text-court-ink">
+              <option value="">Choose</option>
+              <option value="yes">Yes</option>
+              <option value="mixed">Mixed</option>
+              <option value="no">No</option>
+            </select>
+          </label>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {[
+            ['accuracyRating', 'Accuracy'],
+            ['comfortRating', 'Comfort'],
+            ['confidenceRating', 'Confidence'],
+          ].map(([field, label]) => (
+            <label key={field} className="text-xs font-bold text-slate-600">
+              {label}: {draft[field]}/10
+              <input type="range" min="1" max="10" value={draft[field]} onChange={(event) => updateDraft(field, Number(event.target.value))} className="mt-1 w-full accent-court-blue" />
+            </label>
+          ))}
+        </div>
+        <div>
+          <p className="text-xs font-bold text-slate-600">What felt wrong?</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {['Too expensive', 'Too stiff/harsh', 'Too advanced', 'Not enough power', 'Not enough control', 'Wrong style fit'].map((reason) => (
+              <label key={reason} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                <input type="checkbox" checked={draft.mismatchReasons.includes(reason)} onChange={() => toggleMismatch(reason)} className="accent-court-blue" />
+                {reason}
+              </label>
+            ))}
+          </div>
+        </div>
+        <input value={draft.actualSetupUsed} onChange={(event) => updateDraft('actualSetupUsed', event.target.value)} placeholder="Actual setup you use now (optional)" className="rounded-lg border border-court-line bg-white px-3 py-2 text-xs text-court-ink placeholder:text-slate-400" />
+        <textarea value={draft.comments} onChange={(event) => updateDraft('comments', event.target.value)} placeholder="Extra feedback for the model (optional)" rows="2" className="rounded-lg border border-court-line bg-white px-3 py-2 text-xs text-court-ink placeholder:text-slate-400" />
+        <label className="flex items-start gap-2 text-xs leading-5 text-slate-600">
+          <input type="checkbox" checked={draft.consentToResearch} onChange={(event) => updateDraft('consentToResearch', event.target.checked)} className="mt-1 accent-court-blue" />
+          Save this anonymous feedback to the Gear Vision dataset. Leave unchecked to keep it local only.
+        </label>
+        <button className="focus-ring rounded-lg bg-court-blue px-3 py-2 text-xs font-black text-white transition hover:bg-court-green hover:text-court-ink">
+          Save feedback
         </button>
-        <button onClick={() => recordFeedback('accurate', 'yes')} className={`focus-ring rounded-lg px-3 py-2 text-xs font-bold ${current?.accurate === 'yes' ? 'bg-court-green text-court-ink' : 'bg-slate-50 text-slate-600'}`}>
-          Feels accurate
-        </button>
+        {current && <p className="text-xs font-bold text-court-blue">Feedback saved for this setup.</p>}
       </div>
-    </div>
+    </form>
   );
 }
 
