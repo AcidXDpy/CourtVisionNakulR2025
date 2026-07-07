@@ -218,7 +218,7 @@ export default function PlaystyleQuiz({ answers, setAnswers, onComplete, onReset
               className="mt-1 h-4 w-4 shrink-0 accent-court-blue"
             />
             <span>
-              <span className="font-bold text-court-ink">Share anonymous quiz data for model improvement.</span> Optional: no name or email is attached to quiz data, and Gear Vision uses this to evaluate recommendation accuracy over time.
+              <span className="font-bold text-court-ink">Share anonymous quiz data for model improvement.</span> Optional: no name or email is used in public metrics. If you are signed in, the result can still save privately to your account when this is unchecked.
             </span>
           </label>
         </div>

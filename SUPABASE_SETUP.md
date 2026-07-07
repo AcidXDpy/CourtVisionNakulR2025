@@ -1,6 +1,7 @@
 # Gear Vision Supabase Setup
 
 Gear Vision can run without Supabase keys, but adding a free Supabase project turns opt-in quiz results, recommendation feedback, player nominations, and ball donations into a real dataset.
+Supabase also powers magic-link accounts, private player profiles, setup tracking, and personal analytics.
 
 ## 1. Create the project
 
@@ -31,15 +32,30 @@ In Vercel:
 4. Add `VITE_SUPABASE_ANON_KEY`.
 5. Redeploy.
 
-## 4. What gets saved
+## 4. Configure Auth redirects
+
+In Supabase:
+
+1. Open Authentication -> URL Configuration.
+2. Set the site URL to your Vercel production URL.
+3. Add redirect URLs for:
+   - `http://127.0.0.1:5173/profile`
+   - `http://localhost:5173/profile`
+   - `https://your-vercel-domain.vercel.app/profile`
+
+Magic links redirect users back to `/profile`.
+
+## 5. What gets saved
 
 - `quiz_submissions`: anonymous player profile, traits, playstyle scores, consent flag, and recommendation snapshot.
 - `recommendation_feedback`: structured fit feedback, 1-10 ratings, mismatch reasons, actual setup notes, and consent flag.
+- `profiles`: private signed-in player profile.
+- `user_setups`: private setup history for signed-in users.
 - `player_nominations`: Play It Forward nomination form.
 - `ball_donations`: Recycle Tennis Balls donation form.
 - `impact_stats`: public read table for future impact counters.
 - `public_dashboard_metrics`: public-safe aggregate view for the Impact dashboard. It does not expose names, emails, comments, or private form details.
 
-## 5. Free-tier MVP note
+## 6. Free-tier MVP note
 
 This is designed for Supabase Free. Keep exports/backups manually while the project is early. When the dataset becomes important, upgrade or add a backup workflow.

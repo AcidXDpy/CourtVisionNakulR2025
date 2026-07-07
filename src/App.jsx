@@ -1,9 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import CourtVisionImpact from './components/CourtVisionImpact.jsx';
 import GearStory from './components/GearStory.jsx';
 import Hero from './components/Hero.jsx';
-import ImpactDashboardPage from './components/ImpactDashboardPage.jsx';
-import MethodologyPage from './components/MethodologyPage.jsx';
 import Navbar from './components/Navbar.jsx';
 import PlaystyleQuiz from './components/PlaystyleQuiz.jsx';
 import PlayItForwardPage from './components/PlayItForwardPage.jsx';
@@ -12,12 +10,19 @@ import RecycleBallsPage from './components/RecycleBallsPage.jsx';
 import ResultsDashboard from './components/ResultsDashboard.jsx';
 import StringFinder from './components/StringFinder.jsx';
 import { playstyleNames } from './data/playstyles.js';
-import { saveQuizSubmission } from './lib/supabaseClient.js';
+import { getSession, onAuthStateChange, saveQuizSubmission } from './lib/supabaseClient.js';
 
-const routes = new Set(['home', 'quiz', 'gear', 'strings', 'methodology', 'impact', 'play-it-forward', 'recycle', 'results']);
+const ImpactDashboardPage = lazy(() => import('./components/ImpactDashboardPage.jsx'));
+const LoginPage = lazy(() => import('./components/LoginPage.jsx'));
+const MethodologyPage = lazy(() => import('./components/MethodologyPage.jsx'));
+const ProfilePage = lazy(() => import('./components/ProfilePage.jsx'));
+
+const routes = new Set(['home', 'quiz', 'gear', 'strings', 'methodology', 'impact', 'login', 'profile', 'play-it-forward', 'recycle', 'results']);
 const pathRoutes = new Map([
   ['/methodology', 'methodology'],
   ['/impact', 'impact'],
+  ['/login', 'login'],
+  ['/profile', 'profile'],
   ['/play-it-forward', 'play-it-forward'],
   ['/recycle', 'recycle'],
 ]);
@@ -41,6 +46,7 @@ export default function App() {
   const [result, setResult] = useState(null);
   const [manualStyle, setManualStyle] = useState(playstyleNames[0]);
   const [route, setRoute] = useState(readRoute);
+  const [session, setSession] = useState(null);
 
   const activeStyle = useMemo(() => result?.primary || manualStyle, [manualStyle, result]);
   const activePage = route === 'results' ? 'quiz' : route;
@@ -68,6 +74,19 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+    getSession().then((nextSession) => {
+      if (mounted) setSession(nextSession);
+    });
+    const unsubscribe = onAuthStateChange((nextSession) => setSession(nextSession));
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, []);
+
   function startQuiz() {
     window.location.hash = 'quiz';
   }
@@ -90,7 +109,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen text-court-ink">
-      <Navbar activePage={activePage} />
+      <Navbar activePage={activePage} user={session?.user} />
       <main>
         {activePage === 'home' && (
           <>
@@ -107,8 +126,12 @@ export default function App() {
         )}
         {activePage === 'gear' && <RacketFinder selectedStyle={activeStyle} setSelectedStyle={setGlobalStyle} result={result} />}
         {activePage === 'strings' && <StringFinder selectedStyle={activeStyle} setSelectedStyle={setGlobalStyle} result={result} />}
-        {activePage === 'methodology' && <MethodologyPage />}
-        {activePage === 'impact' && <ImpactDashboardPage />}
+        <Suspense fallback={<div className="section-pad text-center text-sm font-bold text-slate-600">Loading Gear Vision...</div>}>
+          {activePage === 'methodology' && <MethodologyPage />}
+          {activePage === 'impact' && <ImpactDashboardPage />}
+          {activePage === 'login' && <LoginPage session={session} />}
+          {activePage === 'profile' && <ProfilePage session={session} />}
+        </Suspense>
         {activePage === 'play-it-forward' && <PlayItForwardPage />}
         {activePage === 'recycle' && <RecycleBallsPage />}
       </main>

@@ -90,7 +90,7 @@ function RankedFitCard({ item, type }) {
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-court-blue">{type}</p>
           <h4 className="mt-2 text-lg font-black text-court-ink">{item.name}</h4>
           <p className="mt-1 text-xs text-slate-500">
-            Fit {item.finalScore}/100 · confidence {item.confidenceScore}/100
+            Fit {item.finalScore}/100 - confidence {item.confidenceScore}/100
           </p>
         </div>
         <span className="rounded-lg bg-white px-2 py-1 text-xs font-bold text-slate-600">{item.price}</span>
@@ -221,7 +221,7 @@ function FeedbackPanel({ option, result }) {
         <textarea value={draft.comments} onChange={(event) => updateDraft('comments', event.target.value)} placeholder="Extra feedback for the model (optional)" rows="2" className="rounded-lg border border-court-line bg-white px-3 py-2 text-xs text-court-ink placeholder:text-slate-400" />
         <label className="flex items-start gap-2 text-xs leading-5 text-slate-600">
           <input type="checkbox" checked={draft.consentToResearch} onChange={(event) => updateDraft('consentToResearch', event.target.checked)} className="mt-1 accent-court-blue" />
-          Save this anonymous feedback to the Gear Vision dataset. Leave unchecked to keep it local only.
+          Share this feedback in anonymous aggregate model metrics. Signed-in users still keep it in their private account when unchecked.
         </label>
         <button className="focus-ring rounded-lg bg-court-blue px-3 py-2 text-xs font-black text-white transition hover:bg-court-green hover:text-court-ink">
           Save feedback

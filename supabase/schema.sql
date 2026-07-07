@@ -21,7 +21,8 @@ create table if not exists public.quiz_submissions (
 
 alter table public.quiz_submissions
   add column if not exists consent_to_research boolean not null default false,
-  add column if not exists anonymous_session_id text;
+  add column if not exists anonymous_session_id text,
+  add column if not exists user_id uuid references auth.users(id) on delete set null;
 
 create table if not exists public.recommendation_feedback (
   id uuid primary key default gen_random_uuid(),
@@ -43,6 +44,7 @@ create table if not exists public.recommendation_feedback (
 
 alter table public.recommendation_feedback
   add column if not exists anonymous_session_id text,
+  add column if not exists user_id uuid references auth.users(id) on delete set null,
   add column if not exists consent_to_research boolean not null default false,
   add column if not exists accuracy_rating integer,
   add column if not exists comfort_rating integer,
@@ -63,6 +65,41 @@ create table if not exists public.player_nominations (
   explanation text not null,
   status text not null default 'new',
   payload jsonb not null default '{}'::jsonb
+);
+
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  display_name text,
+  skill_level text,
+  utr numeric,
+  ntrp numeric,
+  age integer,
+  height text,
+  weight text,
+  playstyle text,
+  arm_issue text,
+  budget_tier text,
+  current_racket text,
+  current_string text,
+  current_tension numeric,
+  notes text
+);
+
+create table if not exists public.user_setups (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  racket text not null,
+  string text not null,
+  tension numeric,
+  notes text,
+  comfort_rating integer,
+  power_rating integer,
+  control_rating integer,
+  spin_rating integer,
+  active boolean not null default false
 );
 
 create table if not exists public.ball_donations (
@@ -98,6 +135,8 @@ on conflict (id) do nothing;
 alter table public.quiz_submissions enable row level security;
 alter table public.recommendation_feedback enable row level security;
 alter table public.player_nominations enable row level security;
+alter table public.profiles enable row level security;
+alter table public.user_setups enable row level security;
 alter table public.ball_donations enable row level security;
 alter table public.impact_stats enable row level security;
 
@@ -105,15 +144,29 @@ drop policy if exists "public can insert quiz submissions" on public.quiz_submis
 create policy "public can insert quiz submissions"
 on public.quiz_submissions
 for insert
-to anon
-with check (true);
+to anon, authenticated
+with check (user_id is null or auth.uid() = user_id);
+
+drop policy if exists "users can read own quiz submissions" on public.quiz_submissions;
+create policy "users can read own quiz submissions"
+on public.quiz_submissions
+for select
+to authenticated
+using (auth.uid() = user_id);
 
 drop policy if exists "public can insert recommendation feedback" on public.recommendation_feedback;
 create policy "public can insert recommendation feedback"
 on public.recommendation_feedback
 for insert
-to anon
-with check (true);
+to anon, authenticated
+with check (user_id is null or auth.uid() = user_id);
+
+drop policy if exists "users can read own recommendation feedback" on public.recommendation_feedback;
+create policy "users can read own recommendation feedback"
+on public.recommendation_feedback
+for select
+to authenticated
+using (auth.uid() = user_id);
 
 drop policy if exists "public can insert player nominations" on public.player_nominations;
 create policy "public can insert player nominations"
@@ -121,6 +174,50 @@ on public.player_nominations
 for insert
 to anon
 with check (true);
+
+drop policy if exists "users can read own profile" on public.profiles;
+create policy "users can read own profile"
+on public.profiles
+for select
+to authenticated
+using (auth.uid() = id);
+
+drop policy if exists "users can insert own profile" on public.profiles;
+create policy "users can insert own profile"
+on public.profiles
+for insert
+to authenticated
+with check (auth.uid() = id);
+
+drop policy if exists "users can update own profile" on public.profiles;
+create policy "users can update own profile"
+on public.profiles
+for update
+to authenticated
+using (auth.uid() = id)
+with check (auth.uid() = id);
+
+drop policy if exists "users can read own setups" on public.user_setups;
+create policy "users can read own setups"
+on public.user_setups
+for select
+to authenticated
+using (auth.uid() = user_id);
+
+drop policy if exists "users can insert own setups" on public.user_setups;
+create policy "users can insert own setups"
+on public.user_setups
+for insert
+to authenticated
+with check (auth.uid() = user_id);
+
+drop policy if exists "users can update own setups" on public.user_setups;
+create policy "users can update own setups"
+on public.user_setups
+for update
+to authenticated
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
 
 drop policy if exists "public can insert ball donations" on public.ball_donations;
 create policy "public can insert ball donations"
@@ -207,3 +304,9 @@ select
   ) as impact_stats;
 
 grant select on public.public_dashboard_metrics to anon;
+grant insert on public.quiz_submissions to anon, authenticated;
+grant select on public.quiz_submissions to authenticated;
+grant insert on public.recommendation_feedback to anon, authenticated;
+grant select on public.recommendation_feedback to authenticated;
+grant select, insert, update on public.profiles to authenticated;
+grant select, insert, update on public.user_setups to authenticated;

@@ -1,6 +1,6 @@
-import { BarChart3, Cable, FlaskConical, HeartHandshake, Home, Recycle, Target, Trophy } from 'lucide-react';
+import { BarChart3, Cable, FlaskConical, HeartHandshake, Home, Recycle, Target, Trophy, UserRound } from 'lucide-react';
 
-const links = [
+const baseLinks = [
   { label: 'Home', id: 'home', icon: Home },
   { label: 'Quiz', id: 'quiz', icon: Target },
   { label: 'Gear', id: 'gear', icon: Trophy },
@@ -11,7 +11,12 @@ const links = [
   { label: 'Recycle', id: 'recycle', icon: Recycle, href: '/recycle' },
 ];
 
-export default function Navbar({ activePage }) {
+export default function Navbar({ activePage, user }) {
+  const links = [
+    ...baseLinks,
+    { label: user ? 'My Data' : 'Login', id: user ? 'profile' : 'login', icon: UserRound, href: user ? '/profile' : '/login' },
+  ];
+
   const renderLink = ({ label, id, icon: Icon, href }, compact = false) => {
     const active = activePage === id;
 
