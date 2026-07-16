@@ -1,4 +1,4 @@
-import { CheckCircle2, Download, Share2, ShieldCheck, SlidersHorizontal, Target, Wallet, Zap } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ClipboardCheck, Download, Share2, ShieldCheck, SlidersHorizontal, Target, Wallet, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { playstyles } from '../data/playstyles.js';
 import { buildAdvancedRecommendations, loadFeedback, money, saveFeedback, STRINGING_LABOR_ESTIMATE } from '../data/recommendationModel.js';
@@ -16,6 +16,10 @@ const scoreLabels = {
   safetyFit: 'Safety',
   skillFit: 'Skill',
   dataQuality: 'Data',
+  launchFit: 'Launch',
+  forgivenessFit: 'Forgiveness',
+  stabilityFit: 'Stability',
+  maneuverabilityFit: 'Maneuver',
 };
 
 function confidenceLabel(score) {
@@ -384,6 +388,94 @@ function GearImpactBlock({ result }) {
   return <ListBlock title="Gear Impact" items={impacts} />;
 }
 
+function FitterDiagnosis({ recommendations }) {
+  const { diagnosis, expertWarnings, decisionChangingQuestion } = recommendations;
+
+  return (
+    <Card className="bg-gradient-to-br from-white via-court-blue/5 to-court-lime/10">
+      <div className="flex items-start gap-3">
+        <ClipboardCheck className="mt-1 text-court-blue" />
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-court-blue">Fit diagnosis</p>
+          <h3 className="mt-2 text-2xl font-black text-court-ink">{diagnosis.primaryProblem}</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Source layer: {diagnosis.sourceLabel}.</p>
+        </div>
+      </div>
+      <div className="mt-5 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Priority stack</p>
+          <ul className="mt-3 space-y-2">
+            {(diagnosis.priorities.length ? diagnosis.priorities : ['Use the least extreme setup that solves the player problem.']).map((item) => (
+              <li key={item} className="text-sm leading-6 text-slate-700">{item}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-lg border border-court-line bg-white p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">What would change this</p>
+          <p className="mt-2 text-sm font-bold leading-6 text-court-ink">{decisionChangingQuestion}</p>
+          {expertWarnings.length > 0 && (
+            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-amber-700">
+                <AlertTriangle size={15} />
+                Expert watchouts
+              </div>
+              <ul className="mt-2 space-y-1">
+                {expertWarnings.map((warning) => <li key={warning} className="text-xs leading-5 text-amber-800">{warning}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function ConfidencePlan({ recommendations }) {
+  const mode = recommendations.confidenceMode;
+  const copy = {
+    one_setup: 'The profile points strongly enough in one direction to lead with one setup and one adjustment rule.',
+    ranked_shortlist: 'Two or three setups solve different versions of the same problem, so GearVision ranks them with a clear purpose.',
+    demo_sequence: 'The missing information matters more than pretending one answer is certain, so GearVision gives a test order.',
+  };
+
+  return (
+    <Card>
+      <p className="text-sm font-bold uppercase tracking-[0.18em] text-court-blue">Confidence-aware output</p>
+      <div className="mt-3 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <div>
+          <h3 className="text-2xl font-black text-court-ink">{mode.label}: {mode.score}/100</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{copy[recommendations.recommendedOutputType]}</p>
+        </div>
+        <span className="rounded-lg bg-court-lime/20 px-4 py-2 text-sm font-black text-court-ink">
+          {recommendations.recommendedOutputType.replaceAll('_', ' ')}
+        </span>
+      </div>
+    </Card>
+  );
+}
+
+function DemoSequence({ sequence }) {
+  if (!sequence?.length) return null;
+
+  return (
+    <Card className="bg-court-ink text-white">
+      <p className="text-sm font-bold uppercase tracking-[0.18em] text-court-green">Demo sequence</p>
+      <h3 className="mt-2 text-2xl font-black">Test the variable, not a random list.</h3>
+      <div className="mt-5 grid gap-3 lg:grid-cols-3">
+        {sequence.map((item) => (
+          <div key={`${item.order}-${item.racket}`} className="rounded-lg border border-white/10 bg-white/[0.08] p-4">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-court-green">Demo {item.order}</p>
+            <h4 className="mt-2 text-lg font-black">{item.racket}</h4>
+            <p className="mt-1 text-sm text-white/70">{item.string} / start {item.tensionStart}</p>
+            <p className="mt-3 text-sm leading-6 text-white/80">{item.test}</p>
+            <p className="mt-3 text-xs leading-5 text-white/60">Compare: {item.evaluationCriteria.join(', ')}</p>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function ShareResultsBlock({ result }) {
   const [status, setStatus] = useState('');
 
@@ -429,7 +521,7 @@ export default function ResultsDashboard({ result }) {
   const primary = playstyles[result.primary];
   const secondary = playstyles[result.secondary];
   const recommendations = buildAdvancedRecommendations(result);
-  const setupOptions = recommendations.topSetups;
+  const setupOptions = recommendations.recommendedSetups;
   const player = recommendations.player;
 
   return (
@@ -472,6 +564,12 @@ export default function ResultsDashboard({ result }) {
           <ListBlock title="Strengths" items={primary.strengths} />
           <GearImpactBlock result={result} />
           <ListBlock title="Setup Watchouts" items={primary.weaknesses} />
+        </div>
+
+        <div className="mt-4 grid gap-4">
+          <FitterDiagnosis recommendations={recommendations} />
+          <ConfidencePlan recommendations={recommendations} />
+          {recommendations.recommendedOutputType === 'demo_sequence' && <DemoSequence sequence={recommendations.demoSequence} />}
         </div>
 
         <Card className="mt-4">
@@ -541,7 +639,7 @@ export default function ResultsDashboard({ result }) {
               <FeedbackExport />
             </div>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Each setup is ranked by a weighted fit score from 0-100 using your style, player data, slider traits, comfort needs, and setup budget. Estimated totals include one racket, one string set, and about {money(STRINGING_LABOR_ESTIMATE)} for stringing labor.
+              Each setup is ranked by a weighted fit score from 0-100 using stroke mechanics, launch window, miss pattern, comfort needs, string durability, swingweight tolerance, and budget. Estimated totals include one racket, one string set, and about {money(STRINGING_LABOR_ESTIMATE)} for stringing labor.
             </p>
             <div className="mt-5 grid gap-4 lg:grid-cols-3">
               {setupOptions.map((option) => (
@@ -557,6 +655,7 @@ export default function ResultsDashboard({ result }) {
                     </span>
                   </div>
                   <p className="mt-3 text-sm leading-6 text-slate-600">{option.intent}</p>
+                  <p className="mt-3 rounded-lg border border-court-line bg-white p-3 text-xs font-bold leading-5 text-court-ink">{option.chooseIf}</p>
                   <ScoreBreakdown components={option.components} />
 
                   <div className="mt-4 overflow-hidden rounded-lg bg-white">
@@ -572,13 +671,25 @@ export default function ResultsDashboard({ result }) {
                     <div>
                       <p className="font-bold text-court-lime">String</p>
                       <p className="text-slate-700">{option.string.name}</p>
-                      <p className="text-xs text-slate-500">{option.string.price} / {option.string.stringType} / suggested {option.tensionRange}</p>
+                      <p className="text-xs text-slate-500">{option.string.price} / {option.string.stringType}</p>
+                    </div>
+                    <div className="rounded-lg border border-court-line bg-white p-3 text-xs leading-5 text-slate-600">
+                      <p className="font-bold text-court-ink">Tension plan</p>
+                      <p>Start: {option.tensionPlan.startingPoint}</p>
+                      <p>Range: {option.tensionPlan.range}</p>
+                      <p className="mt-1 text-slate-500">{option.tensionPlan.rationale}</p>
+                      <ul className="mt-2 space-y-1">
+                        {option.adjustmentRules.map((rule) => <li key={rule}>{rule}</li>)}
+                      </ul>
                     </div>
                     <div className="rounded-lg border border-court-line bg-white p-3 text-xs leading-5 text-slate-600">
                       Racket {option.racket.price} + string {option.string.price} + labor {money(STRINGING_LABOR_ESTIMATE)}
                     </div>
                     <div className="rounded-lg border border-court-line bg-white p-3 text-xs leading-5 text-slate-600">
                       <span className="font-bold text-court-ink">Why this fits:</span> {option.explanation.join(' | ')}
+                    </div>
+                    <div className="rounded-lg border border-court-line bg-white p-3 text-xs leading-5 text-slate-600">
+                      <span className="font-bold text-court-ink">What would change it:</span> {option.whatWouldChange}
                     </div>
                     <WarningList warnings={option.warnings} />
                   </div>

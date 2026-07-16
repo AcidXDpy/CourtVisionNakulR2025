@@ -284,10 +284,38 @@ export const quizProfileFields = [
     options: ['Slow', 'Medium', 'Fast'],
   },
   {
+    id: 'strokeLength',
+    label: 'Stroke length',
+    type: 'select',
+    defaultValue: 'Moderate',
+    options: ['Compact', 'Moderate', 'Long/full'],
+  },
+  {
+    id: 'paceGeneration',
+    label: 'Pace generation',
+    type: 'select',
+    defaultValue: 'Neutral',
+    options: ['I create my own pace', 'Neutral', 'I need help creating depth'],
+  },
+  {
     id: 'topspinLevel',
     label: 'Topspin level',
     type: 'range',
     defaultValue: 6,
+  },
+  {
+    id: 'launchPreference',
+    label: 'Preferred launch window',
+    type: 'select',
+    defaultValue: 'Neutral shape',
+    options: ['Higher heavy ball', 'Neutral shape', 'Lower penetrating ball', 'Not sure yet'],
+  },
+  {
+    id: 'missPattern',
+    label: 'Common miss pattern',
+    type: 'select',
+    defaultValue: 'Not sure yet',
+    options: ['Long', 'Short', 'Into the net', 'Wide/timing miss', 'Not sure yet'],
   },
   {
     id: 'courtPositionPreference',
@@ -295,6 +323,20 @@ export const quizProfileFields = [
     type: 'select',
     defaultValue: 'Baseline',
     options: ['Baseline', 'All-court', 'Net/transition'],
+  },
+  {
+    id: 'swingweightTolerance',
+    label: 'Swingweight feel',
+    type: 'select',
+    defaultValue: 'Balanced',
+    options: ['Need easy maneuverability', 'Balanced', 'Want stability/plow-through', 'Not sure yet'],
+  },
+  {
+    id: 'fatigueBreakdown',
+    label: 'When tired or rushed',
+    type: 'select',
+    defaultValue: 'No major issue',
+    options: ['Swing slows down', 'Timing gets late', 'Racket feels unstable', 'No major issue', 'Not sure yet'],
   },
   {
     id: 'serveImportance',
@@ -315,6 +357,55 @@ export const quizProfileFields = [
     type: 'select',
     defaultValue: 'None',
     options: ['None', 'Elbow', 'Shoulder', 'Wrist', 'Multiple areas'],
+  },
+  {
+    id: 'painSeverity',
+    label: 'Pain severity',
+    type: 'select',
+    defaultValue: 'None',
+    options: ['None', 'Mild soreness after long play', 'Recurring during or after play', 'Active pain changes my swing'],
+  },
+  {
+    id: 'stringBreakFrequency',
+    label: 'String break frequency',
+    type: 'select',
+    defaultValue: 'Rarely break strings',
+    options: ['Rarely break strings', 'Every 10-20 hours', 'Every 6-10 hours', 'Every 3-6 hours', 'Not sure yet'],
+  },
+  {
+    id: 'controlMeaning',
+    label: 'When you say control',
+    type: 'select',
+    defaultValue: 'Predictable depth',
+    options: ['Lower launch', 'More stability', 'Less free power', 'Predictable depth', 'Better feel', 'Not sure yet'],
+  },
+  {
+    id: 'powerMeaning',
+    label: 'When you say power',
+    type: 'select',
+    defaultValue: 'Free depth',
+    options: ['Free depth', 'More ball speed', 'Easier defense', 'Serve pop', 'Not sure yet'],
+  },
+  {
+    id: 'feelMeaning',
+    label: 'When you say feel',
+    type: 'select',
+    defaultValue: 'Connected response',
+    options: ['Softer pocketing', 'More feedback', 'Better touch/volleys', 'Connected response', 'Not sure yet'],
+  },
+  {
+    id: 'spinMeaning',
+    label: 'When you say spin',
+    type: 'select',
+    defaultValue: 'More safety margin',
+    options: ['More RPM', 'Higher net clearance', 'More safety margin', 'Heavier bounce', 'Not sure yet'],
+  },
+  {
+    id: 'demoReadiness',
+    label: 'Recommendation style',
+    type: 'select',
+    defaultValue: 'Show me a ranked shortlist',
+    options: ['Give me one strong answer', 'Show me a ranked shortlist', 'Give me a demo sequence'],
   },
   {
     id: 'currentRacket',
@@ -423,6 +514,57 @@ export function scoreQuiz(answers) {
     profile.traits.maneuverabilityNeed = Math.max(profile.traits.maneuverabilityNeed, 70);
   }
 
+  if (profileInputs.strokeLength === 'Long/full') {
+    profile.traits.riskIntent = Math.max(profile.traits.riskIntent, 62);
+  } else if (profileInputs.strokeLength === 'Compact') {
+    profile.traits.powerIntent = Math.max(profile.traits.powerIntent, 66);
+    profile.traits.maneuverabilityNeed = Math.max(profile.traits.maneuverabilityNeed, 68);
+  }
+
+  if (profileInputs.paceGeneration === 'I create my own pace') {
+    profile.traits.controlIntent = Math.max(profile.traits.controlIntent, 68);
+    profile.traits.powerIntent = Math.min(profile.traits.powerIntent, 58);
+  } else if (profileInputs.paceGeneration === 'I need help creating depth') {
+    profile.traits.powerIntent = Math.max(profile.traits.powerIntent, 74);
+  }
+
+  if (profileInputs.launchPreference === 'Higher heavy ball') {
+    profile.traits.spinIntent = Math.max(profile.traits.spinIntent, 82);
+  } else if (profileInputs.launchPreference === 'Lower penetrating ball') {
+    profile.traits.controlIntent = Math.max(profile.traits.controlIntent, 78);
+    profile.traits.spinIntent = Math.min(profile.traits.spinIntent, 52);
+  }
+
+  if (profileInputs.missPattern === 'Long') {
+    profile.traits.controlIntent = Math.max(profile.traits.controlIntent, 78);
+    profile.traits.powerIntent = Math.min(profile.traits.powerIntent, 56);
+  } else if (profileInputs.missPattern === 'Short' || profileInputs.missPattern === 'Into the net') {
+    profile.traits.powerIntent = Math.max(profile.traits.powerIntent, 72);
+  } else if (profileInputs.missPattern === 'Wide/timing miss') {
+    profile.traits.maneuverabilityNeed = Math.max(profile.traits.maneuverabilityNeed, 70);
+  }
+
+  if (profileInputs.swingweightTolerance === 'Need easy maneuverability') {
+    profile.traits.maneuverabilityNeed = Math.max(profile.traits.maneuverabilityNeed, 82);
+  } else if (profileInputs.swingweightTolerance === 'Want stability/plow-through') {
+    profile.traits.maneuverabilityNeed = Math.min(profile.traits.maneuverabilityNeed, 42);
+    profile.traits.controlIntent = Math.max(profile.traits.controlIntent, 66);
+  }
+
+  if (profileInputs.fatigueBreakdown === 'Swing slows down' || profileInputs.fatigueBreakdown === 'Timing gets late') {
+    profile.traits.maneuverabilityNeed = Math.max(profile.traits.maneuverabilityNeed, 78);
+  } else if (profileInputs.fatigueBreakdown === 'Racket feels unstable') {
+    profile.traits.controlIntent = Math.max(profile.traits.controlIntent, 70);
+  }
+
+  if (profileInputs.stringBreakFrequency === 'Every 3-6 hours') {
+    profile.traits.durabilityNeed = Math.max(profile.traits.durabilityNeed, 92);
+  } else if (profileInputs.stringBreakFrequency === 'Every 6-10 hours') {
+    profile.traits.durabilityNeed = Math.max(profile.traits.durabilityNeed, 78);
+  } else if (profileInputs.stringBreakFrequency === 'Every 10-20 hours') {
+    profile.traits.durabilityNeed = Math.max(profile.traits.durabilityNeed, 62);
+  }
+
   if (profileInputs.powerControlPreference === 'More power') {
     profile.traits.powerIntent = Math.max(profile.traits.powerIntent, 72);
     profile.traits.controlIntent = Math.min(profile.traits.controlIntent, 58);
@@ -437,9 +579,9 @@ export function scoreQuiz(answers) {
     profile.traits.netIntent = Math.min(profile.traits.netIntent, 46);
   }
 
-  if (profileInputs.painArea && profileInputs.painArea !== 'None') {
+  if ((profileInputs.painArea && profileInputs.painArea !== 'None') || (profileInputs.painSeverity && profileInputs.painSeverity !== 'None')) {
     profile.comfortPriority = Math.max(profile.comfortPriority, 2);
-    profile.armIssue = `${profileInputs.painArea} pain`;
+    profile.armIssue = profileInputs.painArea && profileInputs.painArea !== 'None' ? `${profileInputs.painArea} pain` : profileInputs.painSeverity;
     profile.traits.comfortNeed = Math.max(profile.traits.comfortNeed, 86);
   }
 

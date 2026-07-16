@@ -13,6 +13,7 @@ export const MODEL_ASSUMPTIONS = [
   'Comfort warnings are conservative gear-risk signals, not medical advice.',
   'A complete setup is evaluated as racket + string + tension + budget, not as an isolated racket.',
 ];
+export const EXPERT_SOURCE_LABEL = 'expert-informed retail fitting logic';
 
 const ARCHETYPE_KEYS = {
   HEAVY_TOPSPIN: 'heavyTopspinBaseliner',
@@ -118,6 +119,101 @@ function zScore(value, mean, sd) {
   return clamp((value - mean) / sd, -3, 3);
 }
 
+function textIncludes(value, fragment) {
+  return String(value || '').toLowerCase().includes(fragment);
+}
+
+function headSizeNumber(racket) {
+  return Number(String(racket.headSize || '').match(/\d+/)?.[0]) || 100;
+}
+
+function patternDensity(racket) {
+  const [mains, crosses] = String(racket.stringPattern || '16x19').match(/\d+/g)?.map(Number) || [16, 19];
+  return mains >= 18 || crosses >= 20 ? 82 : mains <= 16 && crosses <= 18 ? 28 : 52;
+}
+
+function isFullPolyString(string) {
+  return String(string.stringType || '').toLowerCase().includes('polyester') || String(string.stringType || '').toLowerCase() === 'poly';
+}
+
+function gaugeMm(string) {
+  return Number(String(string.gauge || '').match(/\d\.\d{2}/)?.[0]) || 1.25;
+}
+
+function painSeverityLevel(playerOrResult = {}) {
+  const profile = playerOrResult.profileInputs || playerOrResult.profile || {};
+  const text = `${playerOrResult.armIssue || ''} ${playerOrResult.painArea || ''} ${profile.painArea || ''} ${profile.painSeverity || ''}`.toLowerCase();
+  if (text.includes('active') || text.includes('changes my swing') || text.includes('significant')) return 3;
+  if (text.includes('recurring') || text.includes('during')) return 2;
+  if (text.includes('mild') || text.includes('soreness') || text.includes('elbow') || text.includes('shoulder') || text.includes('wrist') || text.includes('multiple')) return 1;
+  return 0;
+}
+
+function controlMeaningFlags(value) {
+  const text = String(value || '').toLowerCase();
+  return {
+    lowerLaunch: text.includes('lower launch') || text.includes('less free power'),
+    stability: text.includes('stability'),
+    feel: text.includes('feel'),
+    predictableDepth: text.includes('predictable') || text.includes('depth'),
+    unknown: text.includes('not sure'),
+  };
+}
+
+function buildFitterSignals(profile = {}, traits = {}) {
+  const launchPreference = profile.launchPreference || 'Neutral shape';
+  const missPattern = profile.missPattern || 'Not sure yet';
+  const paceGeneration = profile.paceGeneration || 'Neutral';
+  const strokeLength = profile.strokeLength || 'Moderate';
+  const swingweightTolerance = profile.swingweightTolerance || 'Balanced';
+  const fatigueBreakdown = profile.fatigueBreakdown || 'No major issue';
+  const stringBreakFrequency = profile.stringBreakFrequency || 'Rarely break strings';
+  const controlFlags = controlMeaningFlags(profile.controlMeaning);
+  const unknownCount = [
+    launchPreference,
+    missPattern,
+    swingweightTolerance,
+    fatigueBreakdown,
+    stringBreakFrequency,
+    profile.controlMeaning,
+    profile.spinMeaning,
+  ].filter((value) => String(value || '').toLowerCase().includes('not sure')).length;
+
+  const wantsHighLaunch = launchPreference === 'Higher heavy ball' || profile.spinMeaning === 'Higher net clearance' || profile.spinMeaning === 'Heavier bounce';
+  const wantsLowLaunch = launchPreference === 'Lower penetrating ball' || missPattern === 'Long' || controlFlags.lowerLaunch;
+  const needsDepth = paceGeneration === 'I need help creating depth' || missPattern === 'Short' || missPattern === 'Into the net' || profile.powerMeaning === 'Free depth' || profile.powerMeaning === 'Easier defense';
+  const createsPace = paceGeneration === 'I create my own pace';
+  const needsManeuverability = swingweightTolerance === 'Need easy maneuverability' || fatigueBreakdown === 'Swing slows down' || fatigueBreakdown === 'Timing gets late' || strokeLength === 'Compact';
+  const needsStability = swingweightTolerance === 'Want stability/plow-through' || fatigueBreakdown === 'Racket feels unstable' || controlFlags.stability;
+  const frequentBreaker = stringBreakFrequency === 'Every 3-6 hours' || stringBreakFrequency === 'Every 6-10 hours';
+  const chronicBreaker = stringBreakFrequency === 'Every 3-6 hours';
+
+  return {
+    launchPreference,
+    missPattern,
+    paceGeneration,
+    strokeLength,
+    swingweightTolerance,
+    fatigueBreakdown,
+    stringBreakFrequency,
+    controlFlags,
+    wantsHighLaunch,
+    wantsLowLaunch,
+    needsDepth,
+    createsPace,
+    needsManeuverability,
+    needsStability,
+    frequentBreaker,
+    chronicBreaker,
+    unknownCount,
+    launchDemand: wantsHighLaunch ? 84 : wantsLowLaunch ? 32 : 58,
+    forgivenessDemand: clamp((needsDepth ? 76 : 48) + (needsManeuverability ? 8 : 0) + (profile.demoReadiness === 'Give me one strong answer' ? 4 : 0)),
+    stabilityDemand: clamp((needsStability ? 84 : 54) + (traits.controlIntent || 50) * 0.15),
+    maneuverabilityDemand: needsManeuverability ? 84 : swingweightTolerance === 'Want stability/plow-through' ? 36 : 58,
+    durabilityDemand: chronicBreaker ? 96 : frequentBreaker ? 82 : stringBreakFrequency === 'Every 10-20 hours' ? 64 : traits.durabilityNeed || 48,
+  };
+}
+
 function styleToVectorBoost(style) {
   const text = String(style || '').toLowerCase();
   if (text.includes('heavy topspin')) return { spin: 18, aggression: 6 };
@@ -149,12 +245,14 @@ function budgetTier(maxSetupPrice) {
 
 export function buildPlayerProfile(result = {}) {
   const profile = result.profileInputs || {};
+  const profileTraits = result.traits || {};
   const age = parseOptionalNumber(profile.age);
   const weight = parseOptionalNumber(profile.weight);
   const skill = parseSkill(profile.skillLevel);
   const spin = Number(profile.topspinLevel || 0) ? Number(profile.topspinLevel) * 10 : trait(result, 'spinIntent', 58);
   const serve = Number(profile.serveImportance || 0) ? Number(profile.serveImportance) * 10 : trait(result, 'serveReliance', 50);
-  const comfortBase = Math.max((result.comfortPriority || 0) * 48, trait(result, 'comfortNeed', 44), profile.painArea && profile.painArea !== 'None' ? 92 : 0);
+  const painLevel = painSeverityLevel({ ...result, profileInputs: profile });
+  const comfortBase = Math.max((result.comfortPriority || 0) * 48, trait(result, 'comfortNeed', 44), painLevel > 0 ? 92 : 0);
   const maxSetupPrice = Number(result.maxSetupPrice || profile.budgetAmount || 330);
   const swingSpeedMap = { Slow: 34, Medium: 58, Fast: 84 };
   const courtMap = { Baseline: 34, 'All-court': 62, 'Net/transition': 86 };
@@ -171,6 +269,7 @@ export function buildPlayerProfile(result = {}) {
     aggression: clamp(trait(result, 'riskIntent', 50) * 0.5 + power * 0.3 + serve * 0.2),
     skill: clamp(skill),
   };
+  const fitterSignals = buildFitterSignals(profile, profileTraits);
   const playerVector = vectorWithBoost(baseVector, styleToVectorBoost(profile.playingStyle));
   const archetypeMatches = PLAYER_ARCHETYPES
     .map((archetype) => ({
@@ -189,8 +288,10 @@ export function buildPlayerProfile(result = {}) {
     budgetCeiling: maxSetupPrice,
     budgetTier: result.budgetTier || budgetTier(maxSetupPrice),
     painArea: profile.painArea || result.armIssue || 'None',
-    hasPain: Boolean((profile.painArea && profile.painArea !== 'None') || (result.comfortPriority || 0) > 0),
+    painSeverity: painLevel,
+    hasPain: painLevel > 0 || (result.comfortPriority || 0) > 0,
     dislikes: String(profile.setupDislikes || '').toLowerCase(),
+    fitterSignals,
     primaryPlaystyle: result.primary || 'All-Court Player',
     secondaryPlaystyle: result.secondary || 'Counterpuncher',
     archetypeMatches,
@@ -199,12 +300,26 @@ export function buildPlayerProfile(result = {}) {
 }
 
 export function buildRacketVector(racket) {
+  const headSize = headSizeNumber(racket);
+  const density = patternDensity(racket);
+  const openPatternBoost = density < 45 ? 10 : density > 70 ? -10 : 0;
+  const launchSupply = clamp(racket.spin * 9 + openPatternBoost + (headSize >= 100 ? 5 : -4) + (racket.power - 6) * 2);
+  const forgivenessSupply = clamp((headSize - 95) * 7 + racket.comfort * 7 + (racket.swingweight < 324 ? 8 : 0));
+  const stabilitySupply = clamp(42 + normalize(racket.swingweight, 300, 335) * 42 + normalize(grams(racket.weight), 280, 330) * 22 + racket.control * 2);
+  const maneuverabilitySupply = clamp(104 - normalize(racket.swingweight, 300, 335) * 48 - normalize(grams(racket.weight), 280, 330) * 34);
+
   return {
     price: priceNumber(racket.price),
     power: racket.power * 10,
     control: racket.control * 10,
     spin: racket.spin * 10,
     comfort: racket.comfort * 10,
+    headSize,
+    patternDensity: density,
+    launchSupply,
+    forgivenessSupply,
+    stabilitySupply,
+    maneuverabilitySupply,
     weight: grams(racket.weight),
     stiffness: racket.stiffness,
     swingweight: racket.swingweight,
@@ -216,15 +331,20 @@ export function buildRacketVector(racket) {
 }
 
 export function buildStringVector(string) {
+  const gauge = gaugeMm(string);
+  const isPoly = isFullPolyString(string);
+  const gaugeDurabilityBoost = gauge >= 1.3 ? 12 : gauge <= 1.2 ? -8 : 0;
+
   return {
     price: priceNumber(string.price),
     power: string.power * 10,
     control: string.control * 10,
     spin: string.spin * 10,
     comfort: string.comfort * 10,
-    durability: string.durability * 10,
+    durability: clamp(string.durability * 10 + gaugeDurabilityBoost),
+    gauge,
     armSafety: isArmSafeString(string) ? 95 : string.comfort >= 7 ? 72 : 38,
-    isPoly: String(string.stringType).toLowerCase().includes('poly'),
+    isPoly,
   };
 }
 
@@ -250,6 +370,7 @@ function budgetScore(total, budgetCeiling) {
 function racketPenalty(racket, player, vector) {
   const penalties = [];
   const isBeginner = player.skillScore < 42;
+  const fitter = player.fitterSignals;
 
   if (player.hasPain && !isArmSafeRacket(racket, player)) penalties.push({ label: 'Arm health risk from stiffness or swingweight', value: 20 });
   if (isBeginner && vector.skillFloor > 50) penalties.push({ label: 'May be too advanced for a newer player', value: 14 });
@@ -258,6 +379,11 @@ function racketPenalty(racket, player, vector) {
   if (player.budgetCeiling < 285 && priceNumber(racket.price) > 260) penalties.push({ label: 'Frame price pressures a value budget', value: 10 });
   if (player.dislikes.includes('stiff') && racket.stiffness >= 66) penalties.push({ label: 'You flagged stiffness, and this frame is firm', value: 8 });
   if (player.dislikes.includes('control') && racket.control <= 7) penalties.push({ label: 'You flagged control, and this frame leans livelier', value: 7 });
+  if (fitter.wantsLowLaunch && vector.launchSupply >= 72) penalties.push({ label: 'High-launch frame may fight your lower-trajectory control need', value: 14 });
+  if (fitter.wantsHighLaunch && vector.launchSupply <= 48) penalties.push({ label: 'Lower-launch frame may make heavy net clearance harder', value: 10 });
+  if (fitter.needsDepth && vector.power < 62 && vector.forgivenessSupply < 62) penalties.push({ label: 'Low-powered frame may not solve your depth problem', value: 10 });
+  if (fitter.needsManeuverability && vector.maneuverabilitySupply < 50) penalties.push({ label: 'Swingweight may be too demanding when tired or rushed', value: 12 });
+  if (fitter.needsStability && vector.stabilitySupply < 62) penalties.push({ label: 'May not give enough stability against pace', value: 9 });
 
   return penalties;
 }
@@ -265,11 +391,15 @@ function racketPenalty(racket, player, vector) {
 function stringPenalty(string, player, vector) {
   const penalties = [];
   const isBeginner = player.skillScore < 42;
+  const fitter = player.fitterSignals;
 
   if (player.hasPain && !isArmSafeString(string)) penalties.push({ label: 'Not the safest string family for current arm pain', value: 22 });
+  if (player.painSeverity >= 2 && vector.isPoly) penalties.push({ label: 'Recurring or active pain should start away from full polyester', value: 24 });
+  if (player.painSeverity === 1 && vector.isPoly && string.stiffness !== 'Med') penalties.push({ label: 'Mild soreness makes stiff polyester a poor first experiment', value: 10 });
   if (isBeginner && vector.isPoly) penalties.push({ label: 'Full polyester can be unforgiving for newer players', value: 14 });
   if (player.budgetCeiling < 285 && vector.price > 26) penalties.push({ label: 'String price is high for the selected budget', value: 7 });
-  if (player.dislikes.includes('break') && string.durability <= 6) penalties.push({ label: 'Durability may not solve your breakage issue', value: 7 });
+  if ((player.dislikes.includes('break') || fitter.frequentBreaker) && vector.durability <= 68) penalties.push({ label: 'Durability may not solve your breakage issue', value: 13 });
+  if (fitter.chronicBreaker && !vector.isPoly && string.stringType !== 'Hybrid') penalties.push({ label: 'Frequent breakers usually need a durable poly or hybrid conversation', value: 16 });
   if (player.dislikes.includes('power') && string.power <= 5) penalties.push({ label: 'This string is low powered for your complaint', value: 6 });
 
   return penalties;
@@ -281,7 +411,13 @@ function warningLabels(penalties) {
 
 function explainRacket(racket, player, components, warnings) {
   const reasons = [];
+  const fitter = player.fitterSignals;
   if (racket.recommendedPlaystyles.includes(player.primaryPlaystyle)) reasons.push(`Matches your ${player.primaryPlaystyle.toLowerCase()} playstyle signal.`);
+  if (components.launchFit >= 82 && fitter.wantsHighLaunch) reasons.push('Supports the higher, heavier launch window you described.');
+  if (components.launchFit >= 82 && fitter.wantsLowLaunch) reasons.push('Keeps launch more controlled for your miss pattern and trajectory goal.');
+  if (components.forgivenessFit >= 82 && fitter.needsDepth) reasons.push('Adds forgiveness and usable depth without making the choice extreme.');
+  if (components.stabilityFit >= 82 && fitter.needsStability) reasons.push('Gives extra stability for pace, returns, or off-center contact.');
+  if (components.maneuverabilityFit >= 82 && fitter.needsManeuverability) reasons.push('Keeps swingweight manageable when timing or fatigue matters.');
   if (components.archetypeFit >= 82) reasons.push(`Specs line up with the ${player.primaryArchetype.name.toLowerCase()} archetype.`);
   if (components.traitFit >= 82) reasons.push('Power, spin, control, and comfort scores are close to your player vector.');
   if (components.swingFit >= 82) reasons.push('Weight and swingweight fit your reported swing speed.');
@@ -292,9 +428,11 @@ function explainRacket(racket, player, components, warnings) {
 
 function explainString(string, player, components, warnings) {
   const reasons = [];
+  const fitter = player.fitterSignals;
   if (string.recommendedPlaystyles.includes(player.primaryPlaystyle)) reasons.push(`Supports your ${player.primaryPlaystyle.toLowerCase()} string needs.`);
   if (components.traitFit >= 82) reasons.push('String power, spin, control, and comfort closely match the quiz profile.');
   if (components.armSafety >= 84 && player.hasPain) reasons.push('Prioritizes comfort for the pain/injury signal.');
+  if (components.durabilityFit >= 82 && fitter.frequentBreaker) reasons.push('Prioritizes durability because you break strings often.');
   if (components.budgetFit >= 92) reasons.push('Fits the budget without consuming the whole setup.');
   if (!warnings.length && string.comfort >= 7) reasons.push('Comfort score is strong enough to keep as a safer default.');
   return reasons.slice(0, 4);
@@ -308,6 +446,7 @@ function confidenceFrom(components, warningCount, archetypeSimilarity) {
 export function scoreRacket(racket, result = {}) {
   const player = buildPlayerProfile(result);
   const vector = buildRacketVector(racket);
+  const fitter = player.fitterSignals;
   const traitFit = Math.round(
     closeness(player.vector.power, vector.power) * 0.22
       + closeness(player.vector.control, vector.control) * 0.22
@@ -318,6 +457,10 @@ export function scoreRacket(racket, result = {}) {
   const playstyleFit = Math.min(100, 42 + (racket.recommendedPlaystyles.includes(player.primaryPlaystyle) ? 34 : 0) + (racket.recommendedPlaystyles.includes(player.secondaryPlaystyle) ? 16 : 0));
   const swingSupply = Math.round(100 - (normalize(vector.swingweight, 300, 335) * 60 + normalize(vector.weight, 280, 330) * 40));
   const swingFit = Math.round(closeness(player.swingSpeedScore, swingSupply, 90));
+  const launchFit = Math.round(closeness(fitter.launchDemand, vector.launchSupply, 88));
+  const forgivenessFit = Math.round(closeness(fitter.forgivenessDemand, vector.forgivenessSupply, 92));
+  const stabilityFit = Math.round(closeness(fitter.stabilityDemand, vector.stabilitySupply, 90));
+  const maneuverabilityFit = Math.round(closeness(fitter.maneuverabilityDemand, vector.maneuverabilitySupply, 90));
   const safetyFit = player.hasPain ? (isArmSafeRacket(racket, player) ? 94 : 52) : Math.round(clamp(100 - Math.max(0, vector.stiffness - 67) * 6));
   const budgetFit = budgetScore(priceNumber(racket.price) + 75, player.budgetCeiling);
   const archetypeFit = Math.round(cosineSimilarity(
@@ -327,9 +470,9 @@ export function scoreRacket(racket, result = {}) {
   const penalties = racketPenalty(racket, player, vector);
   const penaltyTotal = penalties.reduce((sum, penalty) => sum + penalty.value, 0);
   const weights = player.hasPain
-    ? { traitFit: 0.24, playstyleFit: 0.14, swingFit: 0.14, safetyFit: 0.24, budgetFit: 0.1, archetypeFit: 0.14 }
-    : { traitFit: 0.28, playstyleFit: 0.2, swingFit: 0.16, safetyFit: 0.1, budgetFit: 0.1, archetypeFit: 0.16 };
-  const components = { traitFit, playstyleFit, swingFit, safetyFit, budgetFit, archetypeFit };
+    ? { traitFit: 0.16, playstyleFit: 0.08, swingFit: 0.1, launchFit: 0.08, forgivenessFit: 0.1, stabilityFit: 0.04, maneuverabilityFit: 0.04, safetyFit: 0.22, budgetFit: 0.08, archetypeFit: 0.1 }
+    : { traitFit: 0.18, playstyleFit: 0.14, swingFit: 0.1, launchFit: 0.14, forgivenessFit: 0.08, stabilityFit: 0.06, maneuverabilityFit: 0.06, safetyFit: 0.08, budgetFit: 0.08, archetypeFit: 0.08 };
+  const components = { traitFit, playstyleFit, swingFit, launchFit, forgivenessFit, stabilityFit, maneuverabilityFit, safetyFit, budgetFit, archetypeFit };
   const finalScore = Math.round(clamp(Object.entries(weights).reduce((sum, [key, weight]) => sum + components[key] * weight, 0) - penaltyTotal));
   const warnings = warningLabels(penalties);
 
@@ -348,17 +491,18 @@ export function scoreRacket(racket, result = {}) {
 export function scoreString(string, result = {}) {
   const player = buildPlayerProfile(result);
   const vector = buildStringVector(string);
+  const fitter = player.fitterSignals;
   const traitFit = Math.round(
     closeness(player.vector.power, vector.power) * 0.18
       + closeness(player.vector.control, vector.control) * 0.22
       + closeness(player.vector.spin, vector.spin) * 0.22
       + closeness(player.vector.comfort, vector.comfort) * 0.25
-      + closeness(trait(result, 'durabilityNeed', 50), vector.durability) * 0.13,
+      + closeness(fitter.durabilityDemand, vector.durability) * 0.13,
   );
   const playstyleFit = Math.min(100, 44 + (string.recommendedPlaystyles.includes(player.primaryPlaystyle) ? 32 : 0) + (string.recommendedPlaystyles.includes(player.secondaryPlaystyle) ? 16 : 0));
   const armSafety = player.hasPain ? vector.armSafety : Math.max(68, vector.armSafety - 8);
   const budgetFit = budgetScore(vector.price + 270 + STRINGING_LABOR_ESTIMATE, player.budgetCeiling);
-  const durabilityFit = Math.round(closeness(trait(result, 'durabilityNeed', 50), vector.durability));
+  const durabilityFit = Math.round(closeness(fitter.durabilityDemand, vector.durability));
   const archetypeFit = Math.round(cosineSimilarity(
     { spin: vector.spin, power: vector.power, control: vector.control, serve: vector.power, net: 45, comfort: vector.comfort, aggression: vector.spin, skill: vector.isPoly ? 70 : 35 },
     player.primaryArchetype.vector,
@@ -366,8 +510,10 @@ export function scoreString(string, result = {}) {
   const penalties = stringPenalty(string, player, vector);
   const penaltyTotal = penalties.reduce((sum, penalty) => sum + penalty.value, 0);
   const weights = player.hasPain
-    ? { traitFit: 0.24, playstyleFit: 0.12, armSafety: 0.28, budgetFit: 0.1, durabilityFit: 0.1, archetypeFit: 0.16 }
-    : { traitFit: 0.32, playstyleFit: 0.18, armSafety: 0.12, budgetFit: 0.1, durabilityFit: 0.12, archetypeFit: 0.16 };
+    ? { traitFit: 0.2, playstyleFit: 0.1, armSafety: 0.3, budgetFit: 0.08, durabilityFit: 0.14, archetypeFit: 0.18 }
+    : fitter.frequentBreaker
+      ? { traitFit: 0.24, playstyleFit: 0.14, armSafety: 0.1, budgetFit: 0.08, durabilityFit: 0.26, archetypeFit: 0.18 }
+      : { traitFit: 0.32, playstyleFit: 0.18, armSafety: 0.12, budgetFit: 0.1, durabilityFit: 0.12, archetypeFit: 0.16 };
   const components = { traitFit, playstyleFit, armSafety, budgetFit, durabilityFit, archetypeFit };
   const finalScore = Math.round(clamp(Object.entries(weights).reduce((sum, [key, weight]) => sum + components[key] * weight, 0) - penaltyTotal));
   const warnings = warningLabels(penalties);
@@ -385,21 +531,62 @@ export function scoreString(string, result = {}) {
   };
 }
 
-export function suggestTensionRange(string, result = {}) {
+export function buildTensionPlan(string, result = {}, racket = null, confidenceScore = 70) {
   const player = buildPlayerProfile(result);
-  const [low, high] = String(string.tensionRange || '45-55 lbs').match(/\d+/g)?.map(Number) || [45, 55];
-  const middle = (low + high) / 2;
-  let target = middle;
+  const fitter = player.fitterSignals;
+  const isHybrid = String(string.stringType || '').toLowerCase().includes('hybrid');
+  const isPoly = isFullPolyString(string);
+  const isMultiFamily = ['Multifilament', 'Natural Gut', 'Synthetic Gut'].includes(string.stringType);
+  let low = isPoly ? 45 : isHybrid ? 46 : isMultiFamily ? 50 : 48;
+  let high = isPoly ? 52 : isHybrid ? 54 : isMultiFamily ? 57 : 55;
+  let target = isPoly ? 48 : isHybrid ? 50 : isMultiFamily ? 53 : 51;
 
-  if (player.hasPain) target -= 4;
-  if (player.vector.power >= 74) target -= 2;
-  if (player.vector.control >= 74) target += 2;
-  if (player.skillScore < 38) target -= 2;
-  if (String(string.stringType).toLowerCase().includes('poly')) target -= 2;
+  if (fitter.wantsHighLaunch || fitter.needsDepth) target -= 2;
+  if (fitter.wantsLowLaunch || fitter.controlFlags.lowerLaunch || fitter.missPattern === 'Long') target += 2;
+  if (player.painSeverity > 0) target -= player.painSeverity >= 2 ? 3 : 1;
+  if (racket?.power >= 8 || racket?.stiffness >= 68) target += 1;
+  if (racket && headSizeNumber(racket) < 99 && racket.power <= 7) target -= 1;
+  if (player.skillScore < 38 && !isPoly) target -= 1;
 
-  const start = Math.round(clamp(target - 2, low, high));
-  const end = Math.round(clamp(target + 2, low, high));
-  return `${Math.min(start, end)}-${Math.max(start, end)} lbs`;
+  target = Math.round(clamp(target, low, high));
+  const clearInputs = fitter.unknownCount <= 1 || Boolean(player.profileInputs.currentRacket || player.profileInputs.currentString);
+  const width = confidenceScore >= 85 && clearInputs ? 4 : 6;
+  low = Math.round(clamp(target - Math.floor(width / 2), low, high));
+  high = Math.round(clamp(low + width, low, high));
+  if (high - low > width) high = low + width;
+
+  const adjustmentRules = [
+    'Move up 2 lb if launch is too high or balls fly long.',
+    'Move down 2 lb if depth, comfort, or pocketing feels lacking.',
+  ];
+
+  if (isHybrid) {
+    const polyStart = Math.round(clamp(target - 2, 45, 50));
+    const crossStart = Math.round(clamp(target + 2, 50, 56));
+    return {
+      startingPoint: `Poly side ${polyStart} lb / comfort side ${crossStart} lb`,
+      range: `Poly ${Math.max(45, polyStart - 2)}-${Math.min(50, polyStart + 2)} lb / comfort side ${Math.max(50, crossStart - 2)}-${Math.min(56, crossStart + 2)} lb`,
+      low: Math.max(45, polyStart - 2),
+      high: Math.min(56, crossStart + 2),
+      adjustmentRules,
+      rationale: 'Hybrid tensions separate the lower-powered poly side from the more elastic comfort side.',
+    };
+  }
+
+  return {
+    startingPoint: `${target} lb`,
+    range: `${Math.min(low, high)}-${Math.max(low, high)} lb`,
+    low: Math.min(low, high),
+    high: Math.max(low, high),
+    adjustmentRules,
+    rationale: isPoly
+      ? 'Full polyester usually works best in a lower, practical range because it is low-powered and firm.'
+      : 'Elastic strings usually need a higher reference range for directional control.',
+  };
+}
+
+export function suggestTensionRange(string, result = {}) {
+  return `${buildTensionPlan(string, result).range}s`;
 }
 
 function tensionMidpoint(value) {
@@ -425,6 +612,10 @@ export function evaluateSetupConstraints(racket, string, result = {}) {
     hardFailures.push('Active pain plus a stiff frame/full-poly pairing is excluded by the comfort safeguard.');
   }
 
+  if (player.painSeverity >= 2 && isFullPoly) {
+    hardFailures.push('Recurring or active arm pain blocks full polyester as a starting point.');
+  }
+
   if (player.skillScore < 38 && racket.difficulty === 'High') {
     hardFailures.push('High-demand frame excluded for a beginner/recreational skill signal.');
   }
@@ -443,6 +634,7 @@ export function evaluateSetupConstraints(racket, string, result = {}) {
 function setupComponents(scoredRacket, scoredString, result, predictedAttributes = null) {
   const total = setupTotal(scoredRacket, scoredString);
   const player = buildPlayerProfile(result);
+  const fitter = player.fitterSignals;
   const attrs = predictedAttributes || deriveSetupAttributes(scoredRacket, scoredString, {
     tension: tensionMidpoint(suggestTensionRange(scoredString, result)),
     playerHasPain: player.hasPain,
@@ -455,7 +647,7 @@ function setupComponents(scoredRacket, scoredString, result, predictedAttributes
 
   return {
     playstyleFit: Math.round((scoredRacket.components.playstyleFit * 0.55) + (scoredString.components.playstyleFit * 0.45)),
-    traitFit: Math.round(closeness(player.vector.spin, setupSpin) * 0.22 + closeness(player.vector.power, setupPower) * 0.2 + closeness(player.vector.control, setupControl) * 0.24 + closeness(player.vector.comfort, setupComfort) * 0.24 + closeness(trait(result, 'durabilityNeed', 50), scoredString.durability * 10) * 0.1),
+    traitFit: Math.round(closeness(player.vector.spin, setupSpin) * 0.18 + closeness(player.vector.power, setupPower) * 0.18 + closeness(player.vector.control, setupControl) * 0.2 + closeness(player.vector.comfort, setupComfort) * 0.22 + closeness(fitter.launchDemand, scoredRacket.components.launchFit) * 0.1 + closeness(fitter.durabilityDemand, scoredString.durability * 10) * 0.12),
     performanceFit: Math.round((setupPower + setupSpin + setupControl + attrs.effectiveStability) / 4),
     comfortFit: Math.round(setupComfort),
     budgetFit: budgetScore(total, player.budgetCeiling),
@@ -470,7 +662,8 @@ export function scoreSetup(racket, string, result = {}) {
   const scoredString = string.finalScore !== undefined ? string : scoreString(string, result);
   const player = buildPlayerProfile(result);
   const total = setupTotal(racket, string);
-  const tensionRange = suggestTensionRange(string, result);
+  const tensionPlan = buildTensionPlan(string, result, racket, Math.min(scoredRacket.confidenceScore, scoredString.confidenceScore));
+  const tensionRange = tensionPlan.range;
   const predictedAttributes = deriveSetupAttributes(racket, string, {
     tension: tensionMidpoint(tensionRange),
     playerHasPain: player.hasPain,
@@ -501,6 +694,7 @@ export function scoreSetup(racket, string, result = {}) {
     constraints,
     predictedAttributes,
     tensionRange,
+    tensionPlan,
     configuration: {
       racket: racket.name,
       string: string.name,
@@ -508,6 +702,7 @@ export function scoreSetup(racket, string, result = {}) {
       mainString: scoredString.stringType === 'Hybrid' ? string.name.split('/')[0]?.trim() || string.name : string.name,
       crossString: scoredString.stringType === 'Hybrid' ? string.name.split('/')[1]?.trim() || 'comfort cross' : string.name,
       suggestedTensionRange: tensionRange,
+      suggestedTensionStart: tensionPlan.startingPoint,
       estimatedTotal: total,
     },
     dataQuality: equipmentFeatures.combinedDataConfidence,
@@ -582,27 +777,144 @@ export function buildObjectiveRecommendations(result = {}) {
   }).filter((objective) => objective.setup);
 }
 
+function buildDiagnosis(player) {
+  const fitter = player.fitterSignals;
+  const priorities = [];
+  const redFlags = [];
+
+  if (fitter.wantsHighLaunch) priorities.push('Support a higher, heavier launch window without losing depth control.');
+  if (fitter.wantsLowLaunch) priorities.push('Reduce launch and improve predictability for long misses or flatter drives.');
+  if (fitter.needsDepth) priorities.push('Create easier depth before asking for a more demanding frame.');
+  if (fitter.needsStability) priorities.push('Add stability against pace and off-center contact.');
+  if (fitter.needsManeuverability) priorities.push('Keep swingweight manageable when fatigue or timing breaks down.');
+  if (fitter.frequentBreaker) priorities.push('Prioritize string durability before changing tension for durability alone.');
+  if (player.painSeverity > 0) priorities.push('Treat comfort as a constraint, not a preference.');
+
+  if (player.painSeverity >= 2) redFlags.push('Recurring or active arm pain blocks harsh full-poly starting setups.');
+  if (player.skillScore < 42 && fitter.swingweightTolerance === 'Want stability/plow-through') redFlags.push('Developing players should move toward heavier swingweights gradually.');
+  if (fitter.unknownCount >= 4) redFlags.push('Several fitting signals are still unknown, so a demo path may be more honest than one forced answer.');
+
+  const primaryProblem = priorities[0] || 'Find the least extreme complete setup that improves fit without creating a new problem.';
+
+  return {
+    sourceLabel: EXPERT_SOURCE_LABEL,
+    primaryProblem,
+    priorities: priorities.slice(0, 5),
+    redFlags,
+    translatedPreferences: [
+      `Control means: ${player.profileInputs.controlMeaning || 'predictable depth'}.`,
+      `Power means: ${player.profileInputs.powerMeaning || 'free depth'}.`,
+      `Feel means: ${player.profileInputs.feelMeaning || 'connected response'}.`,
+      `Spin means: ${player.profileInputs.spinMeaning || 'more safety margin'}.`,
+    ],
+  };
+}
+
+function decisionChangingQuestion(player) {
+  const fitter = player.fitterSignals;
+  if (fitter.launchPreference === 'Not sure yet') return 'Do you want a higher, heavier ball or a flatter, more penetrating ball?';
+  if (fitter.missPattern === 'Not sure yet') return 'When you miss under pressure, is it usually long, short, into the net, or a timing miss?';
+  if (fitter.controlFlags.unknown) return 'When you ask for more control, do you mean lower launch, more stability, less power, better feel, or predictable depth?';
+  if (fitter.swingweightTolerance === 'Not sure yet') return 'Does your racket slow down your swing late in a session, or do you need more stability against pace?';
+  if (fitter.stringBreakFrequency === 'Not sure yet') return 'How many hours do you usually get before breaking or cutting out strings?';
+  if (player.profileInputs.demoReadiness === 'Give me a demo sequence') return 'Which demo feels better after two hours: easier depth, neutral control, or feel/precision?';
+  return 'Does the first setup miss by launching too high, feeling too harsh, lacking depth, or feeling unstable?';
+}
+
+function expertWarnings(player, topSetups) {
+  const warnings = [];
+  if (player.painSeverity >= 2) warnings.push('Comfort-first rule active: avoid full polyester until symptoms resolve or a qualified fitter/clinician clears it.');
+  if (player.fitterSignals.chronicBreaker) warnings.push('String-break rule active: change string model/gauge before raising tension just for durability.');
+  if (player.fitterSignals.wantsLowLaunch && topSetups.some((setup) => buildRacketVector(setup.racket).launchSupply > 72)) warnings.push('High-launch alternatives are included only as contrast options, not defaults.');
+  if (player.fitterSignals.unknownCount >= 4) warnings.push('Low-information profile: use the demo sequence to answer the missing fitting question.');
+  return warnings;
+}
+
+function confidenceMode(topSetups, player) {
+  const top = topSetups[0];
+  const second = topSetups[1];
+  const raw = top?.confidenceScore || 60;
+  const gap = second ? top.finalScore - second.finalScore : 12;
+  const adjusted = Math.round(clamp(
+    raw
+      - player.fitterSignals.unknownCount * 6
+      - (gap < 4 ? 8 : gap < 8 ? 4 : 0)
+      - (player.profileInputs.demoReadiness === 'Give me a demo sequence' ? 8 : 0)
+      + (player.profileInputs.demoReadiness === 'Give me one strong answer' ? 3 : 0),
+    35,
+    96,
+  ));
+
+  if (adjusted >= 85) return { score: adjusted, mode: 'high', recommendedOutputType: 'one_setup', label: 'High confidence' };
+  if (adjusted >= 60) return { score: adjusted, mode: 'medium', recommendedOutputType: 'ranked_shortlist', label: 'Medium confidence' };
+  return { score: adjusted, mode: 'low', recommendedOutputType: 'demo_sequence', label: 'Low confidence' };
+}
+
+function setupChoiceLabel(setup, player, index) {
+  const vector = buildRacketVector(setup.racket);
+  if (index === 0) return 'Start here';
+  if (vector.launchSupply >= 72) return 'Choose if you want more launch and spin margin';
+  if (patternDensity(setup.racket) >= 72 || vector.launchSupply <= 48) return 'Choose if you want lower launch and precision';
+  if (setup.components.comfortFit >= 84) return 'Choose if comfort and pocketing matter most';
+  if (setup.components.budgetFit >= 92 && player.budgetTier === 'Value') return 'Choose if you want the cleanest value path';
+  return 'Choose if the primary setup misses your preferred feel';
+}
+
+function enrichSetupForFitter(setup, player, index) {
+  return {
+    ...setup,
+    chooseIf: setupChoiceLabel(setup, player, index),
+    adjustmentRules: setup.tensionPlan?.adjustmentRules || [],
+    whatWouldChange: decisionChangingQuestion(player),
+  };
+}
+
+function buildDemoSequence(topSetups, player) {
+  const criteria = ['Forehand depth', 'Launch height', 'Return stability', 'Backhand timing', 'Comfort after two hours'];
+
+  return topSetups.slice(0, 3).map((setup, index) => ({
+    order: index + 1,
+    racket: setup.racket.name,
+    string: setup.string.name,
+    tensionStart: setup.tensionPlan.startingPoint,
+    test: setupChoiceLabel(setup, player, index),
+    evaluationCriteria: criteria,
+  }));
+}
+
 export function buildAdvancedRecommendations(result = {}) {
   const player = buildPlayerProfile(result);
   const topRackets = rackets.map((racket) => scoreRacket(racket, result)).sort((a, b) => b.finalScore - a.finalScore).slice(0, 3);
   const topStrings = strings.map((string) => scoreString(string, result)).sort((a, b) => b.finalScore - a.finalScore).slice(0, 3);
   const scoredRackets = rackets.map((racket) => scoreRacket(racket, result)).sort((a, b) => b.finalScore - a.finalScore);
   const scoredStrings = strings.map((string) => scoreString(string, result)).sort((a, b) => b.finalScore - a.finalScore);
-  const topSetups = uniqueTopSetups(scoredRackets, scoredStrings, result);
+  const rawTopSetups = uniqueTopSetups(scoredRackets, scoredStrings, result);
+  const topSetups = rawTopSetups.map((setup, index) => enrichSetupForFitter(setup, player, index));
+  const outputMode = confidenceMode(topSetups, player);
   const objectiveRecommendations = buildObjectiveRecommendations(result);
+  const recommendedSetups = outputMode.recommendedOutputType === 'one_setup' ? topSetups.slice(0, 1) : topSetups;
 
   return {
     modelVersion: RECOMMENDATION_MODEL_VERSION,
     featureSchemaVersion: FEATURE_SCHEMA_VERSION,
     featureSchema,
+    expertSourceLabel: EXPERT_SOURCE_LABEL,
     candidateCount: buildSetupUniverse(result, { racketLimit: 14, stringLimit: 18 }).length,
     player,
+    diagnosis: buildDiagnosis(player),
+    confidenceMode: outputMode,
+    recommendedOutputType: outputMode.recommendedOutputType,
+    recommendedSetups,
+    decisionChangingQuestion: decisionChangingQuestion(player),
+    demoSequence: buildDemoSequence(topSetups, player),
+    expertWarnings: expertWarnings(player, topSetups),
     topRackets,
     topStrings,
     topSetups,
     objectiveRecommendations,
     modelNotes: [
       'Scores use weighted feature matching, z-score style spec normalization, archetype similarity, and penalty adjustments.',
+      `Expert-fitter layer uses ${EXPERT_SOURCE_LABEL}: diagnose the equipment problem before selecting products.`,
       'Setups are evaluated as complete configurations: frame, string, tension range, total price, comfort risk, and skill demand.',
       'Confidence is higher when component scores agree and the player vector closely matches a known archetype.',
       'This is a local statistical rules engine, not a trained ML model or medical fitting authority.',
