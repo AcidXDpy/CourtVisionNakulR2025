@@ -1,8 +1,12 @@
-import { buildAdvancedRecommendations } from '../data/recommendationModel.js';
 import { createClient } from '@supabase/supabase-js';
+import { buildAdvancedRecommendations } from '../data/recommendationModel.js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.GEARVISION_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey =
+  import.meta.env.GEARVISION_SUPABASE_ANON_KEY ||
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 const SESSION_STORAGE_KEY = 'gear_vision_anonymous_session_id';
@@ -11,7 +15,8 @@ export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,
-        detectSessionInUrl: true,
+        detectSessionInUrl: false,
+        flowType: 'pkce',
         persistSession: true,
       },
     })
@@ -123,6 +128,64 @@ export async function getSession() {
   if (!supabase) return null;
   const { data } = await supabase.auth.getSession();
   return data.session || null;
+}
+
+function cleanAuthCallbackUrl() {
+  const url = new URL(window.location.href);
+  const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
+  const hadAuthSearchParams = ['code', 'state', 'error', 'error_code', 'error_description'].some((key) => url.searchParams.has(key));
+  const hadAuthHashParams = ['access_token', 'refresh_token', 'expires_in', 'expires_at', 'token_type', 'type'].some((key) => hashParams.has(key));
+
+  if (!hadAuthSearchParams && !hadAuthHashParams) return;
+
+  ['code', 'state', 'error', 'error_code', 'error_description'].forEach((key) => url.searchParams.delete(key));
+  url.hash = hadAuthHashParams ? '' : url.hash;
+  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState(window.history.state, '', nextUrl || '/profile');
+}
+
+export function hasAuthCallbackParams() {
+  if (!supabase || typeof window === 'undefined') return false;
+  const url = new URL(window.location.href);
+  const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
+  return Boolean(url.searchParams.get('code') || url.searchParams.get('error') || hashParams.get('access_token') || hashParams.get('error'));
+}
+
+export async function completeAuthRedirect() {
+  if (!supabase) return { ok: false, skipped: true, session: null };
+
+  const url = new URL(window.location.href);
+  const code = url.searchParams.get('code');
+  const searchError = url.searchParams.get('error_description') || url.searchParams.get('error');
+  const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
+  const hashError = hashParams.get('error_description') || hashParams.get('error');
+
+  if (searchError || hashError) {
+    cleanAuthCallbackUrl();
+    return { ok: false, session: null, message: searchError || hashError };
+  }
+
+  if (code) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    cleanAuthCallbackUrl();
+    if (error) return { ok: false, session: null, error, message: error.message };
+    return { ok: true, session: data.session || (await getSession()) };
+  }
+
+  const accessToken = hashParams.get('access_token');
+  const refreshToken = hashParams.get('refresh_token');
+
+  if (accessToken && refreshToken) {
+    const { data, error } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    cleanAuthCallbackUrl();
+    if (error) return { ok: false, session: null, error, message: error.message };
+    return { ok: true, session: data.session || (await getSession()) };
+  }
+
+  return { ok: true, session: await getSession() };
 }
 
 export function onAuthStateChange(callback) {

@@ -3,10 +3,12 @@ import { useState } from 'react';
 import { isSupabaseConfigured, signInWithGoogle, signInWithMagicLink, signOut } from '../lib/supabaseClient.js';
 import Card from './Card.jsx';
 
-export default function LoginPage({ session }) {
+export default function LoginPage({ session, authStatus = 'ready', authMessage = '' }) {
   const [email, setEmail] = useState(session?.user?.email || '');
   const [status, setStatus] = useState('idle');
   const [message, setMessage] = useState('');
+  const authLoading = authStatus === 'loading';
+  const authError = authStatus === 'error';
 
   async function submit(event) {
     event.preventDefault();
@@ -62,8 +64,10 @@ export default function LoginPage({ session }) {
               <Mail size={24} />
             </span>
             <div>
-              <h2 className="text-2xl font-black text-court-ink">{session ? 'You are signed in' : 'Sign in to GearVision'}</h2>
-              <p className="text-sm text-slate-600">{session?.user?.email || 'Use Google first. Email link stays available as a fallback.'}</p>
+              <h2 className="text-2xl font-black text-court-ink">{authLoading ? 'Finishing sign-in' : session ? 'You are signed in' : 'Sign in to GearVision'}</h2>
+              <p className="text-sm text-slate-600">
+                {authLoading ? 'Securely checking your Google session...' : session?.user?.email || 'Use Google first. Email link stays available as a fallback.'}
+              </p>
             </div>
           </div>
 
@@ -73,7 +77,11 @@ export default function LoginPage({ session }) {
             </p>
           )}
 
-          {session ? (
+          {authLoading ? (
+            <div className="mt-6 rounded-lg border border-court-line bg-white p-4 text-sm font-bold text-slate-600">
+              Hold tight. GearVision is completing the OAuth callback and loading your account.
+            </div>
+          ) : session ? (
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <a href="/profile" className="focus-ring inline-flex items-center justify-center gap-2 rounded-lg bg-court-blue px-4 py-3 text-sm font-black text-white transition hover:bg-court-green hover:text-court-ink">
                 <ShieldCheck size={17} />
@@ -87,7 +95,7 @@ export default function LoginPage({ session }) {
             <div className="mt-6 grid gap-5">
               <button
                 onClick={handleGoogleSignIn}
-                disabled={!isSupabaseConfigured || status === 'google'}
+                disabled={!isSupabaseConfigured || status === 'google' || authLoading}
                 className="focus-ring inline-flex items-center justify-center gap-3 rounded-lg bg-court-ink px-4 py-3 text-sm font-black text-white transition hover:bg-court-blue disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <span className="grid h-6 w-6 place-items-center rounded-full bg-white text-sm font-black text-court-ink">G</span>
@@ -118,6 +126,7 @@ export default function LoginPage({ session }) {
             </div>
           )}
 
+          {authError && <p className="mt-4 rounded-lg bg-rose-50 p-3 text-sm font-bold text-rose-700">{authMessage || 'Could not finish sign-in. Try Google again.'}</p>}
           {message && <p className={`mt-4 rounded-lg p-3 text-sm font-bold ${status === 'error' ? 'bg-rose-50 text-rose-700' : 'bg-court-green/20 text-court-ink'}`}>{message}</p>}
           <p className="mt-5 text-xs leading-5 text-slate-500">
             Personal account data is private to you. Public dashboards only use aggregates and only include quiz/feedback data when you opt in.

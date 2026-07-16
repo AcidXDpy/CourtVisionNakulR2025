@@ -22,7 +22,7 @@ VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-public-anon-key
 ```
 
-The anon key is allowed in the browser. Row Level Security in `supabase/schema.sql` lets public users insert submissions, but does not let them read private submission tables.
+The publishable/anon key is allowed in the browser. Row Level Security in `supabase/schema.sql` lets public users insert submissions, but does not let them read private submission tables.
 
 ## 3. Add Vercel environment variables
 
@@ -34,6 +34,8 @@ In Vercel:
 4. Add `VITE_SUPABASE_ANON_KEY`.
 5. Redeploy.
 
+GearVision also supports Vercel/Supabase integration names if they exist: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY`. The Vite config maps only the safe public URL/key values into the browser bundle. Do not expose plain `SUPABASE_SERVICE_ROLE_KEY` or other secret keys in the client.
+
 ## 4. Configure Auth redirects
 
 In Supabase:
@@ -43,6 +45,7 @@ In Supabase:
 3. Add redirect URLs for:
    - `http://127.0.0.1:5173/profile`
    - `http://localhost:5173/profile`
+   - `https://www.gearvision.dev/profile`
    - `https://court-vision-nakul-r2025.vercel.app/profile`
    - `https://your-vercel-preview-domain.vercel.app/profile`
 
@@ -57,6 +60,7 @@ In Google Cloud:
 1. Open Google Auth Platform / OAuth clients.
 2. Create an OAuth Client ID with application type `Web application`.
 3. Add Authorized JavaScript origins:
+   - `https://www.gearvision.dev`
    - `https://court-vision-nakul-r2025.vercel.app`
    - `http://127.0.0.1:5173`
    - `http://localhost:5173`

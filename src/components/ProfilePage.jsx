@@ -89,7 +89,7 @@ function toForm(profile) {
   };
 }
 
-export default function ProfilePage({ session }) {
+export default function ProfilePage({ session, authStatus = 'ready', authMessage = '' }) {
   const [profileValues, setProfileValues] = useState(profileDefaults);
   const [setupValues, setSetupValues] = useState(setupDefaults);
   const [analytics, setAnalytics] = useState({ profile: null, setups: [], quizzes: [], feedback: [] });
@@ -171,6 +171,37 @@ export default function ProfilePage({ session }) {
     setSaveStatus(result.ok ? 'Setup update saved.' : 'Could not save setup.');
     if (result.ok) setSetupValues(setupDefaults);
     await refresh();
+  }
+
+  if (authStatus === 'loading') {
+    return (
+      <section className="section-pad bg-white">
+        <div className="mx-auto max-w-3xl">
+          <Card className="text-center">
+            <UserRound className="mx-auto text-court-blue" size={34} />
+            <h1 className="mt-4 text-3xl font-black text-court-ink">Finishing sign-in...</h1>
+            <p className="mt-3 text-slate-600">GearVision is completing the secure Google callback and loading your personal analytics.</p>
+          </Card>
+        </div>
+      </section>
+    );
+  }
+
+  if (authStatus === 'error') {
+    return (
+      <section className="section-pad bg-white">
+        <div className="mx-auto max-w-3xl">
+          <Card className="text-center">
+            <UserRound className="mx-auto text-rose-600" size={34} />
+            <h1 className="mt-4 text-3xl font-black text-court-ink">Sign-in did not finish</h1>
+            <p className="mt-3 text-slate-600">{authMessage || 'Try signing in with Google again.'}</p>
+            <a href="/login" className="focus-ring mt-6 inline-flex rounded-lg bg-court-blue px-5 py-3 text-sm font-black text-white transition hover:bg-court-green hover:text-court-ink">
+              Back to sign in
+            </a>
+          </Card>
+        </div>
+      </section>
+    );
   }
 
   if (!session) {

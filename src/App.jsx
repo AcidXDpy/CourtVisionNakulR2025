@@ -14,7 +14,7 @@ import ResultsDashboard from './components/ResultsDashboard.jsx';
 import StringFinder from './components/StringFinder.jsx';
 import { playstyleNames } from './data/playstyles.js';
 import { trackEvent } from './lib/analytics.js';
-import { getSession, onAuthStateChange, saveQuizSubmission } from './lib/supabaseClient.js';
+import { completeAuthRedirect, getSession, onAuthStateChange, saveQuizSubmission } from './lib/supabaseClient.js';
 
 const ImpactDashboardPage = lazy(() => import('./components/ImpactDashboardPage.jsx'));
 const LoginPage = lazy(() => import('./components/LoginPage.jsx'));
@@ -52,6 +52,8 @@ export default function App() {
   const [manualStyle, setManualStyle] = useState(playstyleNames[0]);
   const [route, setRoute] = useState(readRoute);
   const [session, setSession] = useState(null);
+  const [authStatus, setAuthStatus] = useState('loading');
+  const [authMessage, setAuthMessage] = useState('');
 
   const activeStyle = useMemo(() => result?.primary || manualStyle, [manualStyle, result]);
   const activePage = route === 'results' ? 'quiz' : route;
@@ -81,13 +83,41 @@ export default function App() {
 
   useEffect(() => {
     let mounted = true;
-    getSession().then((nextSession) => {
-      if (mounted) setSession(nextSession);
+    let initializing = true;
+    const unsubscribe = onAuthStateChange((nextSession) => {
+      if (!mounted) return;
+      setSession(nextSession);
+      if (initializing) return;
+      setAuthStatus('ready');
+      setAuthMessage('');
     });
-    const unsubscribe = onAuthStateChange((nextSession) => setSession(nextSession));
+
+    async function initializeAuth() {
+      setAuthStatus('loading');
+      const redirectResult = await completeAuthRedirect();
+      if (!mounted) return;
+
+      if (redirectResult?.ok === false && !redirectResult?.skipped) {
+        initializing = false;
+        setAuthStatus('error');
+        setAuthMessage(redirectResult.message || 'Could not finish sign-in.');
+        setSession(null);
+        return;
+      }
+
+      const nextSession = redirectResult?.session || (await getSession());
+      if (!mounted) return;
+      initializing = false;
+      setSession(nextSession);
+      setAuthStatus('ready');
+      setAuthMessage('');
+    }
+
+    initializeAuth();
 
     return () => {
       mounted = false;
+      initializing = false;
       unsubscribe();
     };
   }, []);
@@ -120,7 +150,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen text-court-ink">
-      <Navbar activePage={activePage} user={session?.user} />
+      <Navbar activePage={activePage} user={session?.user} authStatus={authStatus} />
       <main>
         {activePage === 'home' && (
           <>
@@ -143,8 +173,8 @@ export default function App() {
         <Suspense fallback={<div className="section-pad text-center text-sm font-bold text-slate-600">Loading GearVision...</div>}>
           {activePage === 'methodology' && <MethodologyPage />}
           {activePage === 'impact' && <ImpactDashboardPage />}
-          {activePage === 'login' && <LoginPage session={session} />}
-          {activePage === 'profile' && <ProfilePage session={session} />}
+          {activePage === 'login' && <LoginPage session={session} authStatus={authStatus} authMessage={authMessage} />}
+          {activePage === 'profile' && <ProfilePage session={session} authStatus={authStatus} authMessage={authMessage} />}
         </Suspense>
         {activePage === 'play-it-forward' && <PlayItForwardPage />}
         {activePage === 'recycle' && <RecycleBallsPage />}

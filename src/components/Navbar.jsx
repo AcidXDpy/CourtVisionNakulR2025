@@ -12,10 +12,11 @@ const baseLinks = [
   { label: 'Recycle', id: 'recycle', icon: Recycle, href: '/recycle' },
 ];
 
-export default function Navbar({ activePage, user }) {
+export default function Navbar({ activePage, user, authStatus = 'ready' }) {
+  const authLoading = authStatus === 'loading';
   const links = [
     ...baseLinks,
-    { label: user ? 'My Data' : 'Login', id: user ? 'profile' : 'login', icon: UserRound, href: user ? '/profile' : '/login' },
+    { label: authLoading ? 'Checking' : user ? 'My Data' : 'Sign in', id: user ? 'profile' : 'login', icon: UserRound, href: user ? '/profile' : '/login' },
   ];
 
   const renderLink = ({ label, id, icon: Icon, href }, compact = false) => {
