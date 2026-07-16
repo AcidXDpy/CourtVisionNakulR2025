@@ -2,6 +2,7 @@ import { ArrowRight, Gift, HeartHandshake, Mail, MapPin, PackageCheck, UserRound
 import Card from './Card.jsx';
 import { DonationTierCard, Field, ImpactStatCard, useLocalForm } from './ImpactShared.jsx';
 import { savePlayerNomination } from '../lib/supabaseClient.js';
+import { trackEvent } from '../lib/analytics.js';
 
 const nominationDefaults = {
   playerName: '',
@@ -22,12 +23,12 @@ const tiers = [
 
 const processSteps = [
   { title: 'Nominate', text: 'A player, coach, parent, or teammate explains the current setup and gear need.' },
-  { title: 'Review', text: 'Gear Vision uses the recommendation model and budget context to understand what support would help most.' },
+  { title: 'Review', text: 'GearVision uses the recommendation model and budget context to understand what support would help most.' },
   { title: 'Fulfill', text: 'Approved support can become strings, grips, accessories, shoes, or a full setup when resources allow.' },
 ];
 
 function PlayerNominationForm() {
-  const { values, success, remoteStatus, updateValue, submit } = useLocalForm(nominationDefaults, 'Gear Vision player nomination', savePlayerNomination);
+  const { values, success, remoteStatus, updateValue, submit } = useLocalForm(nominationDefaults, 'GearVision player nomination', savePlayerNomination);
 
   return (
     <Card as="form" onSubmit={submit} className="bg-white">
@@ -36,7 +37,7 @@ function PlayerNominationForm() {
         <h2 className="text-2xl font-black text-court-ink">Nominate a Player</h2>
       </div>
       <p className="mt-3 text-sm leading-6 text-slate-600">
-        Tell us about a local player who could use help getting reliable gear. Submissions can save to the Gear Vision Supabase dataset when the backend keys are configured.
+        Tell us about a local player who could use help getting reliable gear. Contact details stay private and are used only for follow-up.
       </p>
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <Field label="Player name" name="playerName" value={values.playerName} onChange={updateValue} />
@@ -55,7 +56,7 @@ function PlayerNominationForm() {
       </div>
       {success && (
         <p className="mt-4 rounded-lg border border-court-green/30 bg-court-green/10 p-3 text-sm font-bold text-court-ink">
-          {remoteStatus === 'saved' ? 'Nomination saved to Gear Vision.' : remoteStatus === 'error' ? 'Nomination saved locally, but Supabase could not be reached.' : 'Nomination received locally. Add Supabase keys to turn this into a live submission.'}
+          {remoteStatus === 'saved' ? 'Nomination received.' : remoteStatus === 'error' ? 'Nomination saved locally, but could not reach the database.' : 'Nomination received locally.'}
         </p>
       )}
       <button className="focus-ring mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-court-green px-5 py-3 font-black text-court-ink transition hover:bg-court-blue hover:text-white">
@@ -72,13 +73,13 @@ export default function PlayItForwardPage() {
         <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
           <div>
             <p className="inline-flex rounded-lg border border-court-lime/40 bg-court-lime/10 px-3 py-1 text-sm font-bold uppercase tracking-[0.16em] text-court-blue">
-              Gear Vision Impact
+              Gear Access Initiative
             </p>
             <h1 className="mt-4 text-5xl font-black leading-tight text-court-ink sm:text-6xl">Play It Forward</h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
-              Gear Vision can help raise money to sponsor tennis gear setups for players who cannot afford expensive rackets, strings, shoes, and accessories.
+              GearVision is building a nomination pipeline for players who need help with practical tennis equipment costs: strings, grips, shoes, rackets, and accessories.
             </p>
-            <a href="#player-nomination" className="focus-ring action-button mt-7 inline-flex items-center justify-center gap-2 rounded-lg bg-court-green px-5 py-3 font-black text-court-ink transition hover:bg-court-blue hover:text-white">
+            <a onClick={() => trackEvent('gear_access_clicked', { target: 'player_nomination_hero' })} href="#player-nomination" className="focus-ring action-button mt-7 inline-flex items-center justify-center gap-2 rounded-lg bg-court-green px-5 py-3 font-black text-court-ink transition hover:bg-court-blue hover:text-white">
               Support a Player <HeartHandshake size={18} />
             </a>
           </div>
@@ -92,7 +93,7 @@ export default function PlayItForwardPage() {
               <div className="rounded-lg border border-white/10 bg-white/[0.08] p-4">
                 <PackageCheck className="text-court-lime" />
                 <p className="mt-4 text-2xl font-black">Local</p>
-                <p className="mt-1 text-sm text-slate-300">Built around real nearby players.</p>
+                <p className="mt-1 text-sm text-slate-300">Designed for nearby teams, coaches, and players.</p>
               </div>
               <div className="rounded-lg border border-white/10 bg-white/[0.08] p-4">
                 <MapPin className="text-court-lime" />
@@ -110,7 +111,7 @@ export default function PlayItForwardPage() {
         <Card className="mt-10 bg-white">
           <h2 className="text-2xl font-black text-court-ink">How gear support works</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            The goal is not to pretend this is a huge nonprofit. It is a practical local pipeline: identify real needs, match them to useful setups, and track outcomes honestly.
+            The goal is a practical local pipeline: identify real needs, match them to useful setups, and track outcomes honestly.
           </p>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             {processSteps.map((step, index) => (
@@ -124,9 +125,9 @@ export default function PlayItForwardPage() {
         </Card>
 
         <div className="mt-10 grid gap-4 md:grid-cols-3">
-          <ImpactStatCard label="Dollars raised" value="$0" caption="Ready for the first local drive or sponsorship partner." />
-          <ImpactStatCard label="Players helped" value="0" caption="Nomination data will help identify the first recipients." />
-          <ImpactStatCard label="Setups donated" value="0" caption="Full setup support can include racket, strings, shoes, and accessories." />
+          <ImpactStatCard label="Funding status" value="Open" caption="Ready for local sponsors, donors, or team-based drives." />
+          <ImpactStatCard label="Nomination status" value="Collecting" caption="Submissions help identify the first players and equipment needs." />
+          <ImpactStatCard label="Fulfillment status" value="Pending" caption="Public donation numbers will appear only after support is completed." />
         </div>
 
         <div id="player-nomination" className="mt-10">
@@ -138,10 +139,10 @@ export default function PlayItForwardPage() {
             <div>
               <h2 className="text-2xl font-black text-court-ink">Support a Player</h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                This starts as a student-built local effort: identify real needs, collect nominations, and turn gear advice into gear access.
+                This starts locally: identify real needs, collect nominations, and turn gear advice into practical gear access.
               </p>
             </div>
-            <a href="#player-nomination" className="focus-ring inline-flex items-center justify-center gap-2 rounded-lg bg-court-blue px-5 py-3 font-black text-white transition hover:bg-court-green hover:text-court-ink">
+            <a onClick={() => trackEvent('gear_access_clicked', { target: 'player_nomination_footer' })} href="#player-nomination" className="focus-ring inline-flex items-center justify-center gap-2 rounded-lg bg-court-blue px-5 py-3 font-black text-white transition hover:bg-court-green hover:text-court-ink">
               Support a Player <Mail size={18} />
             </a>
           </div>

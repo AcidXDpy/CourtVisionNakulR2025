@@ -1,16 +1,20 @@
 import { playstyleNames } from './playstyles.js';
-import { rackets } from './rackets.js';
-import { strings } from './strings.js';
 import {
   buildAdvancedRecommendations,
+  buildObjectiveRecommendations,
   buildPlayerProfile,
   buildRacketVector,
   buildStringVector,
+  buildSetupUniverse as buildEngineSetupUniverse,
+  evaluateSetupConstraints,
+  FEATURE_SCHEMA_VERSION,
   isArmSafeRacket,
   isArmSafeString,
   isComfortString,
+  MODEL_ASSUMPTIONS,
   money,
   priceNumber,
+  RECOMMENDATION_MODEL_VERSION,
   scoreRacket,
   scoreSetup,
   scoreString,
@@ -20,14 +24,19 @@ import {
 
 export {
   buildAdvancedRecommendations,
+  buildObjectiveRecommendations,
   buildPlayerProfile,
   buildRacketVector,
   buildStringVector,
+  evaluateSetupConstraints,
+  FEATURE_SCHEMA_VERSION,
   isArmSafeRacket,
   isArmSafeString,
   isComfortString,
+  MODEL_ASSUMPTIONS,
   money,
   priceNumber,
+  RECOMMENDATION_MODEL_VERSION,
   scoreRacket,
   scoreSetup,
   scoreString,
@@ -82,16 +91,7 @@ export function buildSetupOptions(result = defaultModelResult) {
 }
 
 export function buildSetupUniverse(result = defaultModelResult) {
-  const rankedRackets = rackets.map((racket) => scoreRacket(racket, result)).sort((a, b) => b.finalScore - a.finalScore).slice(0, 12);
-  const rankedStrings = strings.map((string) => scoreString(string, result)).sort((a, b) => b.finalScore - a.finalScore).slice(0, 18);
-
-  return rankedRackets
-    .flatMap((racket) => rankedStrings.map((string) => ({
-      racket,
-      string,
-      ...scoreSetup(racket, string, result),
-    })))
-    .sort((a, b) => b.finalScore - a.finalScore);
+  return buildEngineSetupUniverse(result, { racketLimit: 12, stringLimit: 18 });
 }
 
 export function loadFeedback() {

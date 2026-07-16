@@ -1,29 +1,50 @@
-import { ArrowRight, Cable, Gauge, Sparkles } from 'lucide-react';
+import { ArrowRight, Cable, Gauge, Share2 } from 'lucide-react';
+import { useState } from 'react';
+import { trackEvent } from '../lib/analytics.js';
+import { shareGearVision } from '../lib/share.js';
 
 export default function Hero({ onStartQuiz }) {
+  const [shareStatus, setShareStatus] = useState('');
+
+  function startQuiz() {
+    trackEvent('hero_cta_clicked', { target: 'quiz' });
+    onStartQuiz();
+  }
+
+  async function shareSite() {
+    const result = await shareGearVision('hero');
+    setShareStatus(result.ok ? 'Link copied.' : 'Copy failed.');
+  }
+
   return (
     <section id="home" className="section-pad hero-parallax relative overflow-hidden lg:min-h-[calc(100vh-72px)]">
       <div className="court-lines" aria-hidden="true" />
       <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[0.82fr_1.18fr]">
         <div className="reveal-up relative z-10">
           <p className="mb-4 inline-flex rounded-lg border border-court-lime/40 bg-court-lime/10 px-3 py-1 text-sm font-semibold text-court-lime">
-            Gear intelligence
+            Private beta - tennis gear intelligence
           </p>
           <h1 className="max-w-4xl text-5xl font-black leading-tight text-court-ink sm:text-6xl lg:text-7xl">
-            Gear Vision
-            <span className="block accent-text">for smarter tennis gear.</span>
+            Find a smarter tennis setup using data, not guesswork.
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
-            Discover how your racket, strings, tension, and frame specs can change your power, spin, control, comfort, and confidence on court.
+            GearVision recommends rackets, strings, tensions, and complete setups from your playstyle, level, injury history, budget, and goals.
+          </p>
+          <p className="mt-3 max-w-2xl text-sm font-bold leading-6 text-court-ink">
+            Built for players who want clearer equipment decisions, not louder gear marketing.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <button onClick={onStartQuiz} className="focus-ring action-button inline-flex items-center justify-center gap-2 rounded-lg bg-court-green px-5 py-3 font-bold text-court-ink hover:bg-court-blue hover:text-white">
-              Take the quiz <ArrowRight size={18} />
+            <button onClick={startQuiz} className="focus-ring action-button inline-flex items-center justify-center gap-2 rounded-lg bg-court-green px-5 py-3 font-bold text-court-ink hover:bg-court-blue hover:text-white">
+              Start setup quiz <ArrowRight size={18} />
             </button>
-            <a href="#gear" className="focus-ring action-button inline-flex items-center justify-center rounded-lg border border-court-ink/15 px-5 py-3 font-bold text-court-ink hover:border-court-blue hover:bg-court-blue/10">
-              Browse gear
+            <a onClick={() => trackEvent('gear_guide_clicked', { source: 'hero' })} href="/methodology" className="focus-ring action-button inline-flex items-center justify-center rounded-lg border border-court-ink/15 px-5 py-3 font-bold text-court-ink hover:border-court-blue hover:bg-court-blue/10">
+              See methodology
             </a>
+            <button onClick={shareSite} className="focus-ring action-button inline-flex items-center justify-center gap-2 rounded-lg border border-court-ink/15 px-5 py-3 font-bold text-court-ink hover:border-court-blue hover:bg-court-blue/10">
+              Share <Share2 size={18} />
+            </button>
           </div>
+          {shareStatus && <p className="mt-3 text-sm font-bold text-court-blue">{shareStatus}</p>}
         </div>
 
         <div className="reveal-up relative min-h-[520px] overflow-hidden rounded-lg border border-white/10 bg-court-panel shadow-card [animation-delay:140ms]">
@@ -37,16 +58,15 @@ export default function Hero({ onStartQuiz }) {
             <div className="rounded-lg border border-white/10 bg-black/35 p-4 backdrop-blur">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm text-slate-300">Live profile</p>
+                  <p className="text-sm text-slate-300">Model preview</p>
                   <h2 className="mt-1 text-2xl font-black text-white">Aggressive Baseliner</h2>
                 </div>
-                <Sparkles className="text-court-lime" />
               </div>
               <div className="mt-5 grid grid-cols-3 gap-3">
                 {[
-                  ['Power', '88%'],
-                  ['Control', '74%'],
-                  ['Spin', '81%'],
+                  ['Style', 'Spin'],
+                  ['Risk', 'Arm'],
+                  ['Budget', 'Fit'],
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-lg border border-white/10 bg-white/[0.08] p-3">
                     <p className="text-xs text-slate-300">{label}</p>

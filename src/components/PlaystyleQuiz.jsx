@@ -1,5 +1,6 @@
 import { RotateCcw, Trophy } from 'lucide-react';
 import { quizProfileFields, quizQuestions, quizSliders, scoreQuiz } from '../data/playstyles.js';
+import { trackEvent } from '../lib/analytics.js';
 import Card from './Card.jsx';
 
 export default function PlaystyleQuiz({ answers, setAnswers, onComplete, onReset }) {
@@ -9,7 +10,8 @@ export default function PlaystyleQuiz({ answers, setAnswers, onComplete, onReset
   const complete = answeredChoiceCount === quizQuestions.length;
 
   function choose(questionId, optionIndex) {
-    setAnswers((current) => ({ ...current, [questionId]: optionIndex }));
+    if (!answers.__started) trackEvent('quiz_started', { source: 'first_answer' });
+    setAnswers((current) => ({ ...current, __started: true, [questionId]: optionIndex }));
   }
 
   function chooseSlider(sliderId, value) {

@@ -14,6 +14,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { FEATURE_SCHEMA_VERSION, MODEL_ASSUMPTIONS, RECOMMENDATION_MODEL_VERSION } from '../data/recommendationModel.js';
+import { featureSchema } from '../lib/featureEngineering.js';
 import { modelFeatureRows } from '../lib/modelEvaluation.js';
 import Card from './Card.jsx';
 
@@ -35,7 +37,7 @@ export default function MethodologyPage() {
             <h1 className="mt-3 text-5xl font-black leading-tight text-court-ink sm:text-6xl">Transparent tennis decision science.</h1>
           </div>
           <p className="max-w-2xl text-base leading-8 text-slate-600 lg:justify-self-end">
-            Gear Vision is an explainable scoring system: it turns quiz answers into player features, compares them with racket and string traits, applies risk penalties, and improves through opt-in feedback.
+            GearVision is an explainable scoring system: it turns quiz answers into player features, compares them with racket and string traits, applies risk penalties, and improves through opt-in feedback.
           </p>
         </div>
 
@@ -52,6 +54,39 @@ export default function MethodologyPage() {
             </Card>
           ))}
         </div>
+
+        <Card className="mt-4">
+          <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.18em] text-court-blue">Production model</p>
+              <h2 className="mt-2 text-2xl font-black text-court-ink">Versioned, explainable, and still honest.</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                The live engine is a deterministic decision model, not a black-box ML model. It is designed so future feedback data can evaluate or replace pieces of the scoring system.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="rounded-lg border border-court-line bg-slate-50 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Model version</p>
+                <p className="mt-2 text-sm font-black text-court-ink">{RECOMMENDATION_MODEL_VERSION}</p>
+              </div>
+              <div className="rounded-lg border border-court-line bg-slate-50 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Feature schema</p>
+                <p className="mt-2 text-sm font-black text-court-ink">{FEATURE_SCHEMA_VERSION}</p>
+              </div>
+              <div className="rounded-lg border border-court-line bg-slate-50 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Feature count</p>
+                <p className="mt-2 text-sm font-black text-court-ink">{featureSchema.playerFeatures.length + featureSchema.equipmentFeatures.length + featureSchema.setupFeatures.length} tracked signals</p>
+              </div>
+            </div>
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            {MODEL_ASSUMPTIONS.map((assumption) => (
+              <div key={assumption} className="rounded-lg bg-white p-3 text-sm leading-6 text-slate-600 ring-1 ring-court-line">
+                {assumption}
+              </div>
+            ))}
+          </div>
+        </Card>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
           <Card>
@@ -93,7 +128,7 @@ export default function MethodologyPage() {
         <Card className="mt-4">
           <h2 className="text-xl font-black text-court-ink">Model pipeline</h2>
           <div className="mt-5 grid gap-3 md:grid-cols-5">
-            {['Quiz inputs', 'Feature vector', 'Archetype similarity', 'Penalty adjustments', 'Feedback evaluation'].map((step, index) => (
+            {['Quiz inputs', 'Feature vector', 'Constraint filter', 'Setup simulator', 'Feedback evaluation'].map((step, index) => (
               <div key={step} className="rounded-lg border border-court-line bg-slate-50 p-4">
                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-court-blue">Step {index + 1}</p>
                 <h3 className="mt-2 text-sm font-black text-court-ink">{step}</h3>
@@ -101,7 +136,7 @@ export default function MethodologyPage() {
             ))}
           </div>
           <p className="mt-5 text-sm leading-6 text-slate-600">
-            The next statistical milestone is calibration: comparing predicted confidence with real feedback accuracy. Until Gear Vision has enough opt-in responses, dashboard metrics are labeled as early signals rather than proof.
+            The next statistical milestone is calibration: comparing predicted confidence with real feedback accuracy. Until GearVision has enough opt-in responses, dashboard metrics are labeled as early signals rather than proof.
           </p>
         </Card>
       </div>

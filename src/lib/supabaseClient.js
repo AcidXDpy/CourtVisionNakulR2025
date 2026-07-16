@@ -145,6 +145,23 @@ export async function signInWithMagicLink(email) {
   return error ? { ok: false, error, message: error.message } : { ok: true };
 }
 
+export async function signInWithGoogle() {
+  if (!supabase) return { ok: false, skipped: true, message: 'Supabase is not configured yet.' };
+  const redirectTo = `${window.location.origin}/profile`;
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo,
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'select_account',
+      },
+    },
+  });
+
+  return error ? { ok: false, error, message: error.message } : { ok: true };
+}
+
 export async function signOut() {
   if (!supabase) return { ok: false, skipped: true };
   const { error } = await supabase.auth.signOut();
@@ -167,6 +184,9 @@ function recommendationSnapshot(result) {
   const recommendations = buildAdvancedRecommendations(result);
 
   return {
+    model_version: recommendations.modelVersion,
+    feature_schema_version: recommendations.featureSchemaVersion,
+    candidate_count: recommendations.candidateCount,
     archetype: recommendations.player.primaryArchetype.name,
     archetype_similarity: recommendations.player.primaryArchetype.similarity,
     top_rackets: recommendations.topRackets.map((racket) => ({
@@ -190,7 +210,16 @@ function recommendationSnapshot(result) {
       confidence: setup.confidenceScore,
       total: setup.total,
       tension: setup.tensionRange,
+      components: setup.components,
+      predicted_attributes: setup.predictedAttributes,
       warnings: setup.warnings,
+    })),
+    objectives: recommendations.objectiveRecommendations.map((objective) => ({
+      id: objective.id,
+      label: objective.label,
+      racket: objective.setup.racket.name,
+      string: objective.setup.string.name,
+      score: objective.setup.finalScore,
     })),
   };
 }
@@ -199,11 +228,17 @@ export async function saveQuizSubmission(result) {
   if (!result) return { ok: false, skipped: true };
   const userId = await currentUserId();
   if (!result.consentToResearch && !userId) return { ok: false, skipped: true };
+  const snapshot = recommendationSnapshot(result);
 
   return insertRow('quiz_submissions', {
     user_id: userId,
     anonymous_session_id: getAnonymousSessionId(),
     consent_to_research: Boolean(result.consentToResearch),
+    model_version: snapshot.model_version,
+    feature_schema_version: snapshot.feature_schema_version,
+    candidate_count: snapshot.candidate_count,
+    top_setup_score: snapshot.top_setups?.[0]?.score || null,
+    confidence_score: snapshot.top_setups?.[0]?.confidence || null,
     primary_playstyle: result.primary,
     secondary_playstyle: result.secondary,
     budget_tier: result.budgetTier,
@@ -213,7 +248,7 @@ export async function saveQuizSubmission(result) {
     profile: result.profileInputs || {},
     traits: result.traits || {},
     style_scores: result.totals || {},
-    recommendations: recommendationSnapshot(result),
+    recommendations: snapshot,
   });
 }
 
@@ -234,7 +269,12 @@ export async function saveRecommendationFeedback(feedback) {
     budget_tier: feedback.budgetTier,
     arm_issue: feedback.armIssue,
     final_score: Number(feedback.finalScore || 0),
+    confidence_score: Number(feedback.confidenceScore || 0),
     total_price: Number(feedback.total || 0),
+    model_version: feedback.modelVersion || null,
+    feature_schema_version: feedback.featureSchemaVersion || null,
+    predicted_scores: feedback.predictedScores || {},
+    score_components: feedback.scoreComponents || {},
     would_try: feedback.wouldTry || null,
     accurate: feedback.accurate || null,
     accuracy_rating: feedback.accuracyRating ? Number(feedback.accuracyRating) : null,
@@ -244,6 +284,22 @@ export async function saveRecommendationFeedback(feedback) {
     comments: feedback.comments || null,
     actual_setup_used: feedback.actualSetupUsed || null,
     payload: feedback,
+  });
+}
+
+export async function saveSetupSimulation(values) {
+  const userId = await currentUserId();
+  if (!userId) return { ok: false, skipped: true };
+
+  return insertRow('setup_simulations', {
+    user_id: userId,
+    baseline_setup: values.baselineSetup || {},
+    change_set: values.changeSet || {},
+    predicted_before: values.predictedBefore || {},
+    predicted_after: values.predictedAfter || {},
+    deltas: values.deltas || {},
+    model_version: values.modelVersion || null,
+    feature_schema_version: values.featureSchemaVersion || null,
   });
 }
 

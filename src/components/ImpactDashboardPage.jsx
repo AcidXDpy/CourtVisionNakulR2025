@@ -107,7 +107,7 @@ export default function ImpactDashboardPage() {
               <Database className="text-court-blue" />
               <h2 className="text-xl font-black text-court-ink">Player archetypes</h2>
             </div>
-            <p className="mt-2 text-sm leading-6 text-slate-600">Opt-in quiz submissions become an aggregate view of what player profiles Gear Vision is serving.</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Opt-in quiz submissions become an aggregate view of what player profiles GearVision is serving.</p>
             <div className="mt-5 h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>

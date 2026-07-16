@@ -1,6 +1,6 @@
 import { CheckCircle2, LogIn, Mail, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
-import { isSupabaseConfigured, signInWithMagicLink, signOut } from '../lib/supabaseClient.js';
+import { isSupabaseConfigured, signInWithGoogle, signInWithMagicLink, signOut } from '../lib/supabaseClient.js';
 import Card from './Card.jsx';
 
 export default function LoginPage({ session }) {
@@ -14,7 +14,17 @@ export default function LoginPage({ session }) {
     setMessage('');
     const result = await signInWithMagicLink(email);
     setStatus(result.ok ? 'sent' : 'error');
-    setMessage(result.ok ? 'Check your email for the Gear Vision sign-in link.' : result.message || 'Could not send magic link.');
+    setMessage(result.ok ? 'Check your email for the GearVision sign-in link.' : result.message || 'Could not send magic link.');
+  }
+
+  async function handleGoogleSignIn() {
+    setStatus('google');
+    setMessage('');
+    const result = await signInWithGoogle();
+    if (!result.ok) {
+      setStatus('error');
+      setMessage(result.message || 'Could not start Google sign-in.');
+    }
   }
 
   async function handleSignOut() {
@@ -27,10 +37,10 @@ export default function LoginPage({ session }) {
     <section id="login" className="section-pad bg-white">
       <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-court-blue">Gear Vision Account</p>
+          <p className="text-sm font-bold uppercase tracking-[0.18em] text-court-blue">GearVision Account</p>
           <h1 className="mt-3 text-5xl font-black leading-tight text-court-ink sm:text-6xl">Save your gear story.</h1>
           <p className="mt-5 text-lg leading-8 text-slate-600">
-            Magic link login lets players keep a private profile, track setup changes, and build personalized analytics over time without needing a password.
+            Google sign-in lets players keep a private profile, track setup changes, and build personalized analytics over time without depending on email delivery.
           </p>
           <div className="mt-6 grid gap-3">
             {[
@@ -52,8 +62,8 @@ export default function LoginPage({ session }) {
               <Mail size={24} />
             </span>
             <div>
-              <h2 className="text-2xl font-black text-court-ink">{session ? 'You are signed in' : 'Sign in with email'}</h2>
-              <p className="text-sm text-slate-600">{session?.user?.email || 'No password needed. Supabase sends a secure magic link.'}</p>
+              <h2 className="text-2xl font-black text-court-ink">{session ? 'You are signed in' : 'Sign in to GearVision'}</h2>
+              <p className="text-sm text-slate-600">{session?.user?.email || 'Use Google first. Email link stays available as a fallback.'}</p>
             </div>
           </div>
 
@@ -74,23 +84,38 @@ export default function LoginPage({ session }) {
               </button>
             </div>
           ) : (
-            <form onSubmit={submit} className="mt-6 grid gap-4">
-              <label className="grid gap-2 text-sm font-bold text-court-ink">
-                Email
-                <input
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  type="email"
-                  required
-                  placeholder="you@example.com"
-                  className="focus-ring rounded-lg border border-court-line bg-white px-4 py-3 text-sm font-medium text-court-ink shadow-sm outline-none placeholder:text-slate-400"
-                />
-              </label>
-              <button disabled={!isSupabaseConfigured || status === 'sending'} className="focus-ring inline-flex items-center justify-center gap-2 rounded-lg bg-court-blue px-4 py-3 text-sm font-black text-white transition hover:bg-court-green hover:text-court-ink disabled:cursor-not-allowed disabled:opacity-60">
-                <LogIn size={17} />
-                {status === 'sending' ? 'Sending link...' : 'Send magic link'}
+            <div className="mt-6 grid gap-5">
+              <button
+                onClick={handleGoogleSignIn}
+                disabled={!isSupabaseConfigured || status === 'google'}
+                className="focus-ring inline-flex items-center justify-center gap-3 rounded-lg bg-court-ink px-4 py-3 text-sm font-black text-white transition hover:bg-court-blue disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <span className="grid h-6 w-6 place-items-center rounded-full bg-white text-sm font-black text-court-ink">G</span>
+                {status === 'google' ? 'Opening Google...' : 'Continue with Google'}
               </button>
-            </form>
+              <div className="flex items-center gap-3">
+                <span className="h-px flex-1 bg-court-line" />
+                <span className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Email fallback</span>
+                <span className="h-px flex-1 bg-court-line" />
+              </div>
+              <form onSubmit={submit} className="grid gap-4">
+                <label className="grid gap-2 text-sm font-bold text-court-ink">
+                  Email
+                  <input
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    type="email"
+                    required
+                    placeholder="you@example.com"
+                    className="focus-ring rounded-lg border border-court-line bg-white px-4 py-3 text-sm font-medium text-court-ink shadow-sm outline-none placeholder:text-slate-400"
+                  />
+                </label>
+                <button disabled={!isSupabaseConfigured || status === 'sending'} className="focus-ring inline-flex items-center justify-center gap-2 rounded-lg border border-court-ink/15 bg-white px-4 py-3 text-sm font-black text-court-ink transition hover:border-court-blue hover:bg-court-blue/10 disabled:cursor-not-allowed disabled:opacity-60">
+                  <LogIn size={17} />
+                  {status === 'sending' ? 'Sending link...' : 'Send magic link'}
+                </button>
+              </form>
+            </div>
           )}
 
           {message && <p className={`mt-4 rounded-lg p-3 text-sm font-bold ${status === 'error' ? 'bg-rose-50 text-rose-700' : 'bg-court-green/20 text-court-ink'}`}>{message}</p>}

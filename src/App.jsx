@@ -1,6 +1,9 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import AboutGearVision from './components/AboutGearVision.jsx';
+import BetaResearch from './components/BetaResearch.jsx';
 import CourtVisionImpact from './components/CourtVisionImpact.jsx';
 import GearStory from './components/GearStory.jsx';
+import GearGuidesPage from './components/GearGuidesPage.jsx';
 import Hero from './components/Hero.jsx';
 import Navbar from './components/Navbar.jsx';
 import PlaystyleQuiz from './components/PlaystyleQuiz.jsx';
@@ -10,6 +13,7 @@ import RecycleBallsPage from './components/RecycleBallsPage.jsx';
 import ResultsDashboard from './components/ResultsDashboard.jsx';
 import StringFinder from './components/StringFinder.jsx';
 import { playstyleNames } from './data/playstyles.js';
+import { trackEvent } from './lib/analytics.js';
 import { getSession, onAuthStateChange, saveQuizSubmission } from './lib/supabaseClient.js';
 
 const ImpactDashboardPage = lazy(() => import('./components/ImpactDashboardPage.jsx'));
@@ -17,8 +21,9 @@ const LoginPage = lazy(() => import('./components/LoginPage.jsx'));
 const MethodologyPage = lazy(() => import('./components/MethodologyPage.jsx'));
 const ProfilePage = lazy(() => import('./components/ProfilePage.jsx'));
 
-const routes = new Set(['home', 'quiz', 'gear', 'strings', 'methodology', 'impact', 'login', 'profile', 'play-it-forward', 'recycle', 'results']);
+const routes = new Set(['home', 'quiz', 'gear', 'strings', 'guides', 'methodology', 'impact', 'login', 'profile', 'play-it-forward', 'recycle', 'results']);
 const pathRoutes = new Map([
+  ['/guides', 'guides'],
   ['/methodology', 'methodology'],
   ['/impact', 'impact'],
   ['/login', 'login'],
@@ -88,12 +93,18 @@ export default function App() {
   }, []);
 
   function startQuiz() {
+    trackEvent('quiz_started', { source: 'app_start_quiz' });
     window.location.hash = 'quiz';
   }
 
   function completeQuiz(nextResult) {
     setResult(nextResult);
     setManualStyle(nextResult.primary);
+    trackEvent('quiz_completed', {
+      primary: nextResult.primary,
+      budgetTier: nextResult.budgetTier,
+      consentToResearch: Boolean(nextResult.consentToResearch),
+    });
     saveQuizSubmission(nextResult);
     window.location.hash = 'results';
   }
@@ -114,8 +125,10 @@ export default function App() {
         {activePage === 'home' && (
           <>
             <Hero onStartQuiz={startQuiz} />
+            <BetaResearch onStartQuiz={startQuiz} />
             <CourtVisionImpact />
             <GearStory />
+            <AboutGearVision />
           </>
         )}
         {activePage === 'quiz' && (
@@ -126,7 +139,8 @@ export default function App() {
         )}
         {activePage === 'gear' && <RacketFinder selectedStyle={activeStyle} setSelectedStyle={setGlobalStyle} result={result} />}
         {activePage === 'strings' && <StringFinder selectedStyle={activeStyle} setSelectedStyle={setGlobalStyle} result={result} />}
-        <Suspense fallback={<div className="section-pad text-center text-sm font-bold text-slate-600">Loading Gear Vision...</div>}>
+        {activePage === 'guides' && <GearGuidesPage />}
+        <Suspense fallback={<div className="section-pad text-center text-sm font-bold text-slate-600">Loading GearVision...</div>}>
           {activePage === 'methodology' && <MethodologyPage />}
           {activePage === 'impact' && <ImpactDashboardPage />}
           {activePage === 'login' && <LoginPage session={session} />}
@@ -136,7 +150,7 @@ export default function App() {
         {activePage === 'recycle' && <RecycleBallsPage />}
       </main>
       <footer className="border-t border-court-line bg-white px-4 py-8 text-center text-sm text-slate-500">
-        Gear Vision MVP - explainable gear recommendations, local feedback data, ready for Vercel.
+        GearVision is an educational beta for tennis gear recommendations, player feedback, and gear access research.
       </footer>
     </div>
   );

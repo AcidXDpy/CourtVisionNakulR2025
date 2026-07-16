@@ -7,6 +7,7 @@ export const fallbackDashboardMetrics = {
   would_try_rate: 0,
   accuracy_rate: 0,
   average_fit_score: 0,
+  average_confidence_score: 0,
   archetype_distribution: [
     { name: 'Heavy topspin', value: 0 },
     { name: 'All-court', value: 0 },
@@ -39,7 +40,8 @@ export const modelFeatureRows = [
   { feature: 'Control demand', role: 'Balances launch, precision, and string response', weight: 24 },
   { feature: 'Comfort risk', role: 'Penalizes stiff frames or harsh strings when pain is flagged', weight: 22 },
   { feature: 'Budget fit', role: 'Keeps full setup price inside the selected ceiling', weight: 12 },
-  { feature: 'Archetype similarity', role: 'Compares the player vector with tennis style archetypes', weight: 16 },
+  { feature: 'Skill demand', role: 'Checks whether the setup is too demanding for the player level', weight: 7 },
+  { feature: 'Data quality', role: 'Discounts confidence when specs are incomplete or estimated', weight: 4 },
 ];
 
 export function normalizeMetrics(metrics) {
@@ -89,4 +91,54 @@ export function buildImpactKpis(metrics) {
     { label: 'Balls pledged', value: data.balls_collected || impact.ballsCollected, caption: 'Used balls committed through the recycle flow.' },
     { label: 'Organizations helped', value: impact.organizationsHelped, caption: 'Schools, shelters, senior homes, and programs.' },
   ];
+}
+
+function isPositive(value) {
+  return ['yes', 'true', true].includes(value);
+}
+
+function ratingToPercent(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.min(100, number * 10)) : null;
+}
+
+export function bucketConfidence(score) {
+  const value = Number(score);
+  if (!Number.isFinite(value)) return 'unrated';
+  if (value < 60) return 'low';
+  if (value < 80) return 'medium';
+  return 'high';
+}
+
+export function calculateModelEvaluation(feedbackRows = []) {
+  const rows = feedbackRows.filter(Boolean);
+  const accepted = rows.filter((row) => isPositive(row.would_try ?? row.wouldTry)).length;
+  const accurate = rows.filter((row) => isPositive(row.accurate)).length;
+  const retained = rows.filter((row) => isPositive(row.kept_setup ?? row.keptSetup)).length;
+  const predictionErrors = rows
+    .map((row) => {
+      const predicted = Number(row.final_score ?? row.finalScore);
+      const actual = ratingToPercent(row.accuracy_rating ?? row.accuracyRating);
+      return Number.isFinite(predicted) && actual !== null ? Math.abs(predicted - actual) : null;
+    })
+    .filter((value) => value !== null);
+  const buckets = ['low', 'medium', 'high'].map((bucket) => {
+    const bucketRows = rows.filter((row) => bucketConfidence(row.confidence_score ?? row.confidenceScore ?? ratingToPercent(row.confidence_rating ?? row.confidenceRating)) === bucket);
+    const bucketAccurate = bucketRows.filter((row) => isPositive(row.accurate)).length;
+    return {
+      bucket,
+      count: bucketRows.length,
+      accuracy: bucketRows.length ? Math.round((bucketAccurate / bucketRows.length) * 100) : 0,
+    };
+  });
+
+  return {
+    sampleSize: rows.length,
+    acceptanceRate: rows.length ? Math.round((accepted / rows.length) * 100) : 0,
+    accuracyRate: rows.length ? Math.round((accurate / rows.length) * 100) : 0,
+    retentionRate: rows.length ? Math.round((retained / rows.length) * 100) : 0,
+    meanAbsoluteError: predictionErrors.length ? Math.round(predictionErrors.reduce((sum, value) => sum + value, 0) / predictionErrors.length) : null,
+    confidenceCalibration: buckets,
+    sampleWarning: sampleSizeWarning(rows.length),
+  };
 }

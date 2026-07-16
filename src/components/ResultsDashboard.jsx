@@ -1,7 +1,9 @@
-import { CheckCircle2, Download, ShieldCheck, Target, Wallet, Zap } from 'lucide-react';
+import { CheckCircle2, Download, Share2, ShieldCheck, SlidersHorizontal, Target, Wallet, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { playstyles } from '../data/playstyles.js';
 import { buildAdvancedRecommendations, loadFeedback, money, saveFeedback, STRINGING_LABOR_ESTIMATE } from '../data/recommendationModel.js';
+import { shareGearVision } from '../lib/share.js';
+import { simulateSetupChange } from '../lib/setupSimulator.js';
 import { saveRecommendationFeedback } from '../lib/supabaseClient.js';
 import Card from './Card.jsx';
 
@@ -12,6 +14,8 @@ const scoreLabels = {
   comfortFit: 'Comfort',
   budgetFit: 'Budget',
   safetyFit: 'Safety',
+  skillFit: 'Skill',
+  dataQuality: 'Data',
 };
 
 function confidenceLabel(score) {
@@ -79,6 +83,105 @@ function WarningList({ warnings }) {
         ))}
       </ul>
     </div>
+  );
+}
+
+function midpoint(range) {
+  const numbers = String(range || '').match(/\d+/g)?.map(Number) || [];
+  if (numbers.length >= 2) return Math.round((numbers[0] + numbers[1]) / 2);
+  return numbers[0] || 52;
+}
+
+function DeltaRow({ label, value, inverse = false }) {
+  const positive = inverse ? value < 0 : value > 0;
+  const neutral = value === 0;
+
+  return (
+    <div className="rounded-lg border border-court-line bg-white p-3">
+      <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{label}</p>
+      <p className={`mt-1 text-2xl font-black ${neutral ? 'text-slate-500' : positive ? 'text-court-blue' : 'text-amber-700'}`}>
+        {value > 0 ? '+' : ''}{value}
+      </p>
+    </div>
+  );
+}
+
+function SetupSimulator({ option, result }) {
+  const baseTension = midpoint(option.tensionRange);
+  const [tension, setTension] = useState(baseTension);
+  const [addedWeight, setAddedWeight] = useState(0);
+  const [placement, setPlacement] = useState('3_and_9');
+  const simulation = simulateSetupChange({
+    racket: option.racket,
+    string: option.string,
+    baselineOptions: {
+      tension: baseTension,
+      total: option.total,
+      playerHasPain: result.comfortPriority > 0,
+    },
+    changeOptions: {
+      tension,
+      customization: {
+        addedWeightGrams: addedWeight,
+        weightPlacement: placement,
+      },
+    },
+  });
+
+  return (
+    <Card className="bg-gradient-to-br from-white via-court-blue/5 to-court-lime/10">
+      <div className="grid gap-5 lg:grid-cols-[0.85fr_1.15fr]">
+        <div>
+          <div className="flex items-center gap-3">
+            <SlidersHorizontal className="text-court-blue" size={26} />
+            <h3 className="text-2xl font-black text-court-ink">Counterfactual setup simulator</h3>
+          </div>
+          <p className="mt-3 text-sm leading-6 text-slate-600">
+            Start from the top recommendation, then estimate what changes when tension or added weight changes. These are transparent approximations, not lab measurements.
+          </p>
+          <div className="mt-5 grid gap-3">
+            <label className="text-sm font-bold text-court-ink">
+              String tension: {tension} lbs
+              <input type="range" min="40" max="60" value={tension} onChange={(event) => setTension(Number(event.target.value))} className="mt-2 w-full accent-court-blue" />
+            </label>
+            <label className="text-sm font-bold text-court-ink">
+              Added weight: {addedWeight}g
+              <input type="range" min="0" max="12" value={addedWeight} onChange={(event) => setAddedWeight(Number(event.target.value))} className="mt-2 w-full accent-court-blue" />
+            </label>
+            <label className="text-sm font-bold text-court-ink">
+              Weight placement
+              <select value={placement} onChange={(event) => setPlacement(event.target.value)} className="focus-ring mt-2 w-full rounded-lg border border-court-line bg-white px-3 py-2 text-sm text-court-ink">
+                <option value="3_and_9">3 and 9 o'clock</option>
+                <option value="12">12 o'clock</option>
+                <option value="throat">Throat</option>
+                <option value="handle">Under grip / handle</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-court-blue">Estimated deltas vs baseline</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <DeltaRow label="Power" value={simulation.deltas.effectivePower || 0} />
+            <DeltaRow label="Control" value={simulation.deltas.effectiveControl || 0} />
+            <DeltaRow label="Spin" value={simulation.deltas.effectiveSpin || 0} />
+            <DeltaRow label="Comfort" value={simulation.deltas.effectiveComfort || 0} />
+            <DeltaRow label="Stability" value={simulation.deltas.effectiveStability || 0} />
+            <DeltaRow label="Arm risk" value={simulation.deltas.armStressWarningScore || 0} inverse />
+          </div>
+          <div className="mt-4 rounded-lg border border-court-line bg-white p-4">
+            <p className="text-sm font-black text-court-ink">
+              String-bed stiffness estimate: {simulation.changed.estimatedStringBedStiffness}/100 - confidence {simulation.confidence}/100
+            </p>
+            <ul className="mt-3 space-y-2">
+              {simulation.explanation.map((item) => (
+                <li key={item} className="text-xs leading-5 text-slate-600">{item}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </Card>
   );
 }
 
@@ -158,7 +261,12 @@ function FeedbackPanel({ option, result }) {
       budgetTier: result.budgetTier,
       armIssue: result.armIssue,
       finalScore: option.finalScore,
+      confidenceScore: option.confidenceScore,
       total: option.total,
+      modelVersion: option.modelVersion,
+      featureSchemaVersion: option.featureSchemaVersion,
+      predictedScores: option.predictedAttributes,
+      scoreComponents: option.components,
       createdAt: new Date().toISOString(),
       ...(current || {}),
       ...draft,
@@ -276,6 +384,33 @@ function GearImpactBlock({ result }) {
   return <ListBlock title="Gear Impact" items={impacts} />;
 }
 
+function ShareResultsBlock({ result }) {
+  const [status, setStatus] = useState('');
+
+  async function share() {
+    const next = await shareGearVision('results_dashboard');
+    setStatus(next.ok ? 'Link copied. Send it to a teammate who knows their setup.' : 'Copy failed.');
+  }
+
+  return (
+    <Card className="bg-court-ink text-white">
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-court-green">Share GearVision</p>
+          <h3 className="mt-2 text-2xl font-black">Know another {result.primary.toLowerCase()}?</h3>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/70">
+            Share the quiz with a teammate. More real player profiles make the beta gear report and recommendation model stronger.
+          </p>
+          {status && <p className="mt-3 text-sm font-bold text-court-green">{status}</p>}
+        </div>
+        <button onClick={share} className="focus-ring inline-flex items-center justify-center gap-2 rounded-lg bg-court-green px-5 py-3 font-black text-court-ink transition hover:bg-white">
+          Copy link <Share2 size={18} />
+        </button>
+      </div>
+    </Card>
+  );
+}
+
 export default function ResultsDashboard({ result }) {
   if (!result) {
     return (
@@ -348,7 +483,7 @@ export default function ResultsDashboard({ result }) {
                 The engine converts your quiz into a player vector, compares it with tennis archetypes, normalizes spec signals, and then applies budget, skill, and arm-safety penalties.
               </p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-lg bg-slate-50 p-3">
                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Closest archetype</p>
                 <p className="mt-2 text-lg font-black text-court-ink">{player.primaryArchetype.name}</p>
@@ -364,7 +499,35 @@ export default function ResultsDashboard({ result }) {
                 <p className="mt-2 text-lg font-black text-court-ink">{player.hasPain ? 'Arm-safe bias' : 'Performance bias'}</p>
                 <p className="mt-1 text-sm text-slate-600">{player.budgetTier} budget model</p>
               </div>
+              <div className="rounded-lg bg-slate-50 p-3">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Candidate search</p>
+                <p className="mt-2 text-lg font-black text-court-ink">{recommendations.candidateCount} setups</p>
+                <p className="mt-1 text-sm text-slate-600">{recommendations.modelVersion}</p>
+              </div>
             </div>
+          </div>
+        </Card>
+
+        <Card className="mt-4">
+          <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.18em] text-court-blue">Multi-objective ranking</p>
+              <h3 className="mt-2 text-2xl font-black text-court-ink">Different good answers, not one fake best.</h3>
+            </div>
+            <p className="max-w-2xl text-sm leading-6 text-slate-600">
+              GearVision ranks the candidate set through separate objectives so you can see where comfort, spin, value, and transition ease disagree.
+            </p>
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            {recommendations.objectiveRecommendations.map((objective) => (
+              <div key={objective.id} className="rounded-lg border border-court-line bg-slate-50 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-court-blue">{objective.label}</p>
+                <h4 className="mt-2 text-sm font-black text-court-ink">{objective.setup.racket.name}</h4>
+                <p className="mt-1 text-xs text-slate-500">{objective.setup.string.name}</p>
+                <p className="mt-3 text-xs leading-5 text-slate-600">{objective.description}</p>
+                <p className="mt-3 text-xs font-black text-court-ink">Fit {objective.setup.finalScore}/100 - {money(objective.setup.total)}</p>
+              </div>
+            ))}
           </div>
         </Card>
 
@@ -424,6 +587,10 @@ export default function ResultsDashboard({ result }) {
               ))}
             </div>
           </Card>
+
+          {setupOptions[0] && <SetupSimulator option={setupOptions[0]} result={result} />}
+
+          <ShareResultsBlock result={result} />
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>

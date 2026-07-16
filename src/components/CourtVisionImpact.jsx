@@ -1,10 +1,11 @@
 import { ArrowRight, HeartHandshake, Recycle } from 'lucide-react';
+import { trackEvent } from '../lib/analytics.js';
 import Card from './Card.jsx';
 
 const impactCards = [
   {
     title: 'Play It Forward',
-    description: 'Sponsor tennis gear for players who need help affording their setup.',
+    description: 'Help identify and support players who need practical equipment assistance.',
     button: 'Support a Player',
     href: '/play-it-forward',
     icon: HeartHandshake,
@@ -24,13 +25,13 @@ export default function CourtVisionImpact() {
       <div className="mx-auto max-w-7xl">
         <div className="mb-8 grid gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.18em] text-court-blue">Gear Vision Impact</p>
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-court-blue">Gear Access Initiative</p>
             <h2 className="mt-2 max-w-3xl text-4xl font-black leading-tight text-court-ink sm:text-5xl">
-              Gear advice should lead to gear access.
+              Recommendation data can point to real gear needs.
             </h2>
           </div>
           <p className="max-w-2xl text-base leading-8 text-slate-600 lg:justify-self-end">
-            Gear Vision can grow beyond recommendations by helping local players get equipment and giving used tennis balls a practical second life.
+            GearVision is also testing a practical impact loop: understand what players need, collect nominations and used balls, and keep public claims tied to real submissions.
           </p>
         </div>
 
@@ -45,7 +46,7 @@ export default function CourtVisionImpact() {
                   <h3 className="mt-5 text-3xl font-black text-court-ink">{title}</h3>
                   <p className="mt-3 max-w-xl text-base leading-7 text-slate-600">{description}</p>
                 </div>
-                <a href={href} className="focus-ring inline-flex w-fit items-center justify-center gap-2 rounded-lg bg-court-green px-5 py-3 font-black text-court-ink transition hover:bg-court-blue hover:text-white">
+                <a onClick={() => trackEvent('gear_access_clicked', { target: href })} href={href} className="focus-ring inline-flex w-fit items-center justify-center gap-2 rounded-lg bg-court-green px-5 py-3 font-black text-court-ink transition hover:bg-court-blue hover:text-white">
                   {button} <ArrowRight size={18} />
                 </a>
               </div>

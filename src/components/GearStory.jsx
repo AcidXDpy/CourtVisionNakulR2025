@@ -31,7 +31,7 @@ export default function GearStory() {
             </h2>
           </div>
           <p className="max-w-2xl text-base leading-8 text-slate-600 lg:justify-self-end">
-            Gear Vision is built around the relationship between equipment and ball behavior: more bite, easier depth, cleaner feel, safer comfort, or tighter control.
+            GearVision is built around the relationship between equipment and ball behavior: more bite, easier depth, cleaner feel, safer comfort, or tighter control.
           </p>
         </div>
 

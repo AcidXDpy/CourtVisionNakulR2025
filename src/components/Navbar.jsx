@@ -1,10 +1,11 @@
-import { BarChart3, Cable, FlaskConical, HeartHandshake, Home, Recycle, Target, Trophy, UserRound } from 'lucide-react';
+import { BarChart3, BookOpen, Cable, FlaskConical, HeartHandshake, Home, Recycle, Target, Trophy, UserRound } from 'lucide-react';
 
 const baseLinks = [
   { label: 'Home', id: 'home', icon: Home },
   { label: 'Quiz', id: 'quiz', icon: Target },
   { label: 'Gear', id: 'gear', icon: Trophy },
   { label: 'Strings', id: 'strings', icon: Cable },
+  { label: 'Guides', id: 'guides', icon: BookOpen, href: '/guides' },
   { label: 'Model', id: 'methodology', icon: FlaskConical, href: '/methodology' },
   { label: 'Impact', id: 'impact', icon: BarChart3, href: '/impact' },
   { label: 'Forward', id: 'play-it-forward', icon: HeartHandshake, href: '/play-it-forward' },
@@ -40,10 +41,10 @@ export default function Navbar({ activePage, user }) {
       <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
         <a href="/#home" className="flex items-center gap-3">
           <span className="grid h-10 w-10 place-items-center overflow-hidden rounded-lg border border-court-blue/20 bg-court-blue shadow-sm">
-            <img src="/images/brand/gear-vision-mark.png" alt="Gear Vision logo" className="h-full w-full object-cover" />
+            <img src="/images/brand/gear-vision-mark.png" alt="GearVision logo" className="h-full w-full object-cover" />
           </span>
           <span>
-            <span className="block text-lg font-black tracking-wide">Gear Vision</span>
+            <span className="block text-lg font-black tracking-wide">GearVision</span>
             <span className="hidden text-xs text-slate-500 sm:block">Tennis gear advisor</span>
           </span>
         </a>

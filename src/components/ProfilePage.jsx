@@ -199,7 +199,7 @@ export default function ProfilePage({ session }) {
             <h1 className="mt-3 text-5xl font-black leading-tight text-court-ink sm:text-6xl">Your gear lab.</h1>
           </div>
           <p className="max-w-2xl text-base leading-8 text-slate-600 lg:justify-self-end">
-            Gear Vision tracks your profile, setup experiments, quiz history, and feedback so recommendations can become more personal over time.
+            GearVision tracks your profile, setup experiments, quiz history, and feedback so recommendations can become more personal over time.
           </p>
         </div>
 
@@ -355,7 +355,7 @@ export default function ProfilePage({ session }) {
             <Card className="lg:col-span-3">
               <CheckCircle2 className="text-court-blue" size={26} />
               <h3 className="mt-3 text-xl font-black text-court-ink">Your first saved setup will appear here.</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">Once you log a setup, Gear Vision can compare real comfort/performance against recommendation scores.</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">Once you log a setup, GearVision can compare real comfort/performance against recommendation scores.</p>
             </Card>
           )}
         </div>

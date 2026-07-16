@@ -22,7 +22,12 @@ create table if not exists public.quiz_submissions (
 alter table public.quiz_submissions
   add column if not exists consent_to_research boolean not null default false,
   add column if not exists anonymous_session_id text,
-  add column if not exists user_id uuid references auth.users(id) on delete set null;
+  add column if not exists user_id uuid references auth.users(id) on delete set null,
+  add column if not exists model_version text,
+  add column if not exists feature_schema_version text,
+  add column if not exists candidate_count integer,
+  add column if not exists top_setup_score numeric,
+  add column if not exists confidence_score numeric;
 
 create table if not exists public.recommendation_feedback (
   id uuid primary key default gen_random_uuid(),
@@ -49,6 +54,11 @@ alter table public.recommendation_feedback
   add column if not exists accuracy_rating integer,
   add column if not exists comfort_rating integer,
   add column if not exists confidence_rating integer,
+  add column if not exists confidence_score numeric,
+  add column if not exists model_version text,
+  add column if not exists feature_schema_version text,
+  add column if not exists predicted_scores jsonb not null default '{}'::jsonb,
+  add column if not exists score_components jsonb not null default '{}'::jsonb,
   add column if not exists mismatch_reasons text[] not null default '{}'::text[],
   add column if not exists comments text,
   add column if not exists actual_setup_used text;
@@ -102,6 +112,50 @@ create table if not exists public.user_setups (
   active boolean not null default false
 );
 
+create table if not exists public.model_versions (
+  id text primary key,
+  created_at timestamptz not null default now(),
+  status text not null default 'active',
+  description text not null,
+  intended_use text not null,
+  limitations text not null,
+  coefficients jsonb not null default '{}'::jsonb,
+  evaluation_summary jsonb not null default '{}'::jsonb
+);
+
+create table if not exists public.feature_versions (
+  id text primary key,
+  created_at timestamptz not null default now(),
+  description text not null,
+  player_features text[] not null default '{}'::text[],
+  equipment_features text[] not null default '{}'::text[],
+  setup_features text[] not null default '{}'::text[]
+);
+
+create table if not exists public.saved_recommendations (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  model_version text,
+  feature_schema_version text,
+  player_profile jsonb not null default '{}'::jsonb,
+  recommendation jsonb not null default '{}'::jsonb,
+  notes text
+);
+
+create table if not exists public.setup_simulations (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  model_version text,
+  feature_schema_version text,
+  baseline_setup jsonb not null default '{}'::jsonb,
+  change_set jsonb not null default '{}'::jsonb,
+  predicted_before jsonb not null default '{}'::jsonb,
+  predicted_after jsonb not null default '{}'::jsonb,
+  deltas jsonb not null default '{}'::jsonb
+);
+
 create table if not exists public.ball_donations (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
@@ -132,11 +186,57 @@ insert into public.impact_stats (id)
 values ('current')
 on conflict (id) do nothing;
 
+insert into public.model_versions (id, status, description, intended_use, limitations, coefficients, evaluation_summary)
+values (
+  'gv-rules-engine-2.0.0',
+  'active',
+  'Deterministic complete-setup scoring engine using feature matching, constraints, objective ranking, and conservative comfort warnings.',
+  'Educational tennis equipment decision support for comparing racket/string/tension configurations.',
+  'Not a medical assessment, not a trained predictive ML model, and dependent on incomplete public equipment data.',
+  '{"setup_weights":"stored in frontend source","confidence":"component agreement plus data-quality penalty"}'::jsonb,
+  '{"status":"pre-outcome-data","minimum_feedback_rows_for_stable_metrics":50}'::jsonb
+)
+on conflict (id) do update set
+  status = excluded.status,
+  description = excluded.description,
+  intended_use = excluded.intended_use,
+  limitations = excluded.limitations,
+  coefficients = excluded.coefficients,
+  evaluation_summary = excluded.evaluation_summary;
+
+insert into public.feature_versions (id, description, player_features, equipment_features, setup_features)
+values (
+  'gv-feature-schema-2.0.0',
+  'Player, equipment, and setup features used by the complete-configuration recommendation engine.',
+  array['skillScore','swingSpeedScore','budgetCeiling','spinDemand','powerDemand','controlDemand','comfortDemand','serveDemand','netDemand','armSensitivity'],
+  array['retailPrice','headSizeSqIn','strungWeightGrams','swingweight','stiffnessRA','powerLevel','controlLevel','spinPotential','comfortLevel','dataConfidence'],
+  array['effectivePower','effectiveControl','effectiveSpin','effectiveComfort','effectiveStability','effectiveManeuverability','armStressWarningScore','skillDemandScore','configurationCost','confidence']
+)
+on conflict (id) do update set
+  description = excluded.description,
+  player_features = excluded.player_features,
+  equipment_features = excluded.equipment_features,
+  setup_features = excluded.setup_features;
+
+create index if not exists quiz_submissions_user_created_idx on public.quiz_submissions (user_id, created_at desc);
+create index if not exists quiz_submissions_consent_created_idx on public.quiz_submissions (consent_to_research, created_at desc);
+create index if not exists recommendation_feedback_user_created_idx on public.recommendation_feedback (user_id, created_at desc);
+create index if not exists recommendation_feedback_consent_created_idx on public.recommendation_feedback (consent_to_research, created_at desc);
+create index if not exists user_setups_user_created_idx on public.user_setups (user_id, created_at desc);
+create index if not exists saved_recommendations_user_created_idx on public.saved_recommendations (user_id, created_at desc);
+create index if not exists setup_simulations_user_created_idx on public.setup_simulations (user_id, created_at desc);
+create index if not exists player_nominations_status_created_idx on public.player_nominations (status, created_at desc);
+create index if not exists ball_donations_status_created_idx on public.ball_donations (status, created_at desc);
+
 alter table public.quiz_submissions enable row level security;
 alter table public.recommendation_feedback enable row level security;
 alter table public.player_nominations enable row level security;
 alter table public.profiles enable row level security;
 alter table public.user_setups enable row level security;
+alter table public.model_versions enable row level security;
+alter table public.feature_versions enable row level security;
+alter table public.saved_recommendations enable row level security;
+alter table public.setup_simulations enable row level security;
 alter table public.ball_donations enable row level security;
 alter table public.impact_stats enable row level security;
 
@@ -219,6 +319,48 @@ to authenticated
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
+drop policy if exists "public can read model versions" on public.model_versions;
+create policy "public can read model versions"
+on public.model_versions
+for select
+to anon, authenticated
+using (true);
+
+drop policy if exists "public can read feature versions" on public.feature_versions;
+create policy "public can read feature versions"
+on public.feature_versions
+for select
+to anon, authenticated
+using (true);
+
+drop policy if exists "users can read own saved recommendations" on public.saved_recommendations;
+create policy "users can read own saved recommendations"
+on public.saved_recommendations
+for select
+to authenticated
+using (auth.uid() = user_id);
+
+drop policy if exists "users can insert own saved recommendations" on public.saved_recommendations;
+create policy "users can insert own saved recommendations"
+on public.saved_recommendations
+for insert
+to authenticated
+with check (auth.uid() = user_id);
+
+drop policy if exists "users can read own setup simulations" on public.setup_simulations;
+create policy "users can read own setup simulations"
+on public.setup_simulations
+for select
+to authenticated
+using (auth.uid() = user_id);
+
+drop policy if exists "users can insert own setup simulations" on public.setup_simulations;
+create policy "users can insert own setup simulations"
+on public.setup_simulations
+for insert
+to authenticated
+with check (auth.uid() = user_id);
+
 drop policy if exists "public can insert ball donations" on public.ball_donations;
 create policy "public can insert ball donations"
 on public.ball_donations
@@ -243,6 +385,7 @@ select
   (select coalesce(round(avg(case when would_try = 'yes' then 1 else 0 end) * 100), 0)::int from public.recommendation_feedback where consent_to_research = true and would_try is not null) as would_try_rate,
   (select coalesce(round(avg(case when accurate = 'yes' then 1 else 0 end) * 100), 0)::int from public.recommendation_feedback where consent_to_research = true and accurate is not null) as accuracy_rate,
   (select coalesce(round(avg(final_score)), 0)::int from public.recommendation_feedback where consent_to_research = true and final_score is not null) as average_fit_score,
+  (select coalesce(round(avg(confidence_score)), 0)::int from public.recommendation_feedback where consent_to_research = true and confidence_score is not null) as average_confidence_score,
   (
     select coalesce(jsonb_agg(jsonb_build_object('name', archetype, 'value', row_count) order by row_count desc), '[]'::jsonb)
     from (
@@ -308,5 +451,12 @@ grant insert on public.quiz_submissions to anon, authenticated;
 grant select on public.quiz_submissions to authenticated;
 grant insert on public.recommendation_feedback to anon, authenticated;
 grant select on public.recommendation_feedback to authenticated;
+grant insert on public.player_nominations to anon;
+grant insert on public.ball_donations to anon;
+grant select on public.impact_stats to anon;
 grant select, insert, update on public.profiles to authenticated;
 grant select, insert, update on public.user_setups to authenticated;
+grant select on public.model_versions to anon, authenticated;
+grant select on public.feature_versions to anon, authenticated;
+grant select, insert on public.saved_recommendations to authenticated;
+grant select, insert on public.setup_simulations to authenticated;
