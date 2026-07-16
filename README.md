@@ -17,6 +17,7 @@ GearVision is a tennis equipment intelligence project built on the existing Cour
 - Tailwind CSS utility styling
 - Recharts for public analytics
 - Supabase Free for auth, Postgres, RLS, opt-in research data, and account data
+- Stripe Checkout for project support payments
 - Local deterministic JavaScript recommendation engine, no AI API calls
 
 ## Local Development
@@ -46,12 +47,19 @@ VITE_SUPABASE_ANON_KEY=your-public-anon-or-publishable-key
 
 Run `supabase/schema.sql` in the Supabase SQL editor after pulling backend changes. The schema enables RLS, adds aggregate-safe public metrics, and stores model/feature versions for future evaluation.
 
+## Stripe
+
+GearVision supports project-support payments through Stripe Checkout. This is for keeping the website, data tooling, and product work moving; it is not presented as a charity, nonprofit, or tax-deductible giving flow.
+
+See `STRIPE_SETUP.md` for the required Vercel env vars, webhook endpoint, and Supabase mirror table.
+
 ## Key Docs
 
 - `ARCHITECTURE.md`: system modules and data flow
 - `METHODOLOGY.md`: recommendation math and simulator assumptions
 - `DATA_DICTIONARY.md`: database and feature definitions
 - `MODEL_CARD.md`: intended use, limitations, failure modes, and evaluation status
+- `STRIPE_SETUP.md`: Stripe Checkout and webhook setup
 
 ## Current Limitation
 

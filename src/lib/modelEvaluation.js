@@ -3,7 +3,9 @@ export const fallbackDashboardMetrics = {
   feedback_count: 0,
   player_nominations: 0,
   ball_donations: 0,
+  support_payments: 0,
   balls_collected: 0,
+  stripe_support_dollars: 0,
   would_try_rate: 0,
   accuracy_rate: 0,
   average_fit_score: 0,
@@ -87,9 +89,9 @@ export function buildImpactKpis(metrics) {
 
   return [
     { label: 'Players nominated', value: data.player_nominations, caption: 'Private nomination details stay in Supabase.' },
-    { label: 'Players helped', value: impact.playersHelped, caption: 'Manual impact counter for fulfilled support.' },
+    { label: 'Project support', value: `$${Number(impact.dollarsRaised || data.stripe_support_dollars || 0).toLocaleString()}`, caption: `${data.support_payments} completed Stripe contribution${data.support_payments === 1 ? '' : 's'}.` },
+    { label: 'Players helped', value: impact.playersHelped, caption: 'Fulfilled gear support, updated after real distribution.' },
     { label: 'Balls pledged', value: data.balls_collected || impact.ballsCollected, caption: 'Used balls committed through the recycle flow.' },
-    { label: 'Organizations helped', value: impact.organizationsHelped, caption: 'Schools, shelters, senior homes, and programs.' },
   ];
 }
 

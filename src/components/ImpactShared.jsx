@@ -11,12 +11,22 @@ export function ImpactStatCard({ label, value, caption }) {
   );
 }
 
-export function DonationTierCard({ amount, title, description }) {
+export function SupportTierCard({ amount, title, description, actionLabel, onAction, busy = false }) {
   return (
     <Card className="bg-gradient-to-br from-white via-court-blue/5 to-court-lime/15">
       <p className="text-3xl font-black text-court-ink">{amount}</p>
       <h3 className="mt-3 text-lg font-black text-court-ink">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
+      {onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          disabled={busy}
+          className="focus-ring mt-5 inline-flex w-full items-center justify-center rounded-lg bg-court-blue px-4 py-3 text-sm font-black text-white transition hover:bg-court-green hover:text-court-ink disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {busy ? 'Opening Stripe...' : actionLabel}
+        </button>
+      )}
     </Card>
   );
 }

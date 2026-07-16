@@ -1,6 +1,6 @@
 # Gear Vision Supabase Setup
 
-Gear Vision can run without Supabase keys, but adding a free Supabase project turns opt-in quiz results, recommendation feedback, player nominations, and ball donations into a real dataset.
+Gear Vision can run without Supabase keys, but adding a free Supabase project turns opt-in quiz results, recommendation feedback, player nominations, ball donations, and project support aggregates into a real dataset.
 Supabase also powers Google sign-in, magic-link fallback accounts, private player profiles, setup tracking, and personal analytics.
 
 ## 1. Create the project
@@ -89,8 +89,11 @@ Keep the Google scopes minimal: `openid`, `email`, and `profile`.
 - `feature_versions`: feature schema metadata for evaluation and reproducibility.
 - `player_nominations`: Play It Forward nomination form.
 - `ball_donations`: Recycle Tennis Balls donation form.
+- `support_payments`: server-written Stripe Checkout mirror for completed GearVision project support payments.
 - `impact_stats`: public read table for future impact counters.
 - `public_dashboard_metrics`: public-safe aggregate view for the Impact dashboard. It does not expose names, emails, comments, or private form details.
+
+Stripe support payments require server-only Vercel env vars. See `STRIPE_SETUP.md`. Never expose `SUPABASE_SERVICE_ROLE_KEY` in client code.
 
 ## 7. Free-tier MVP note
 

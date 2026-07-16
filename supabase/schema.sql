@@ -186,6 +186,20 @@ insert into public.impact_stats (id)
 values ('current')
 on conflict (id) do nothing;
 
+create table if not exists public.support_payments (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  stripe_session_id text not null unique,
+  stripe_payment_intent_id text,
+  status text not null default 'unknown',
+  amount_total integer not null default 0,
+  currency text not null default 'usd',
+  support_tier_id text,
+  supporter_email text,
+  supporter_name text,
+  payload jsonb not null default '{}'::jsonb
+);
+
 insert into public.model_versions (id, status, description, intended_use, limitations, coefficients, evaluation_summary)
 values (
   'gv-rules-engine-2.0.0',
@@ -227,6 +241,8 @@ create index if not exists saved_recommendations_user_created_idx on public.save
 create index if not exists setup_simulations_user_created_idx on public.setup_simulations (user_id, created_at desc);
 create index if not exists player_nominations_status_created_idx on public.player_nominations (status, created_at desc);
 create index if not exists ball_donations_status_created_idx on public.ball_donations (status, created_at desc);
+create index if not exists support_payments_status_created_idx on public.support_payments (status, created_at desc);
+create index if not exists support_payments_tier_created_idx on public.support_payments (support_tier_id, created_at desc);
 
 alter table public.quiz_submissions enable row level security;
 alter table public.recommendation_feedback enable row level security;
@@ -239,6 +255,7 @@ alter table public.saved_recommendations enable row level security;
 alter table public.setup_simulations enable row level security;
 alter table public.ball_donations enable row level security;
 alter table public.impact_stats enable row level security;
+alter table public.support_payments enable row level security;
 
 drop policy if exists "public can insert quiz submissions" on public.quiz_submissions;
 create policy "public can insert quiz submissions"
@@ -375,13 +392,16 @@ for select
 to anon
 using (true);
 
-create or replace view public.public_dashboard_metrics as
+drop view if exists public.public_dashboard_metrics;
+create view public.public_dashboard_metrics as
 select
   (select count(*)::int from public.quiz_submissions where consent_to_research = true) as quiz_submissions,
   (select count(*)::int from public.recommendation_feedback where consent_to_research = true) as feedback_count,
   (select count(*)::int from public.player_nominations) as player_nominations,
   (select count(*)::int from public.ball_donations) as ball_donations,
+  (select count(*)::int from public.support_payments where status = 'paid') as support_payments,
   (select coalesce(sum(ball_count), 0)::int from public.ball_donations) as balls_collected,
+  (select coalesce(round(sum(amount_total)::numeric / 100, 2), 0)::numeric from public.support_payments where status = 'paid') as stripe_support_dollars,
   (select coalesce(round(avg(case when would_try = 'yes' then 1 else 0 end) * 100), 0)::int from public.recommendation_feedback where consent_to_research = true and would_try is not null) as would_try_rate,
   (select coalesce(round(avg(case when accurate = 'yes' then 1 else 0 end) * 100), 0)::int from public.recommendation_feedback where consent_to_research = true and accurate is not null) as accuracy_rate,
   (select coalesce(round(avg(final_score)), 0)::int from public.recommendation_feedback where consent_to_research = true and final_score is not null) as average_fit_score,
@@ -436,7 +456,7 @@ select
     select jsonb_build_object(
       'playersHelped', players_helped,
       'setupsDonated', setups_donated,
-      'dollarsRaised', dollars_raised,
+      'dollarsRaised', dollars_raised + (select coalesce(round(sum(amount_total)::numeric / 100, 2), 0)::numeric from public.support_payments where status = 'paid'),
       'ballsCollected', balls_collected,
       'sheltersSupported', shelters_supported,
       'seniorHomesSupported', senior_homes_supported,
@@ -446,7 +466,8 @@ select
     where id = 'current'
   ) as impact_stats;
 
-grant select on public.public_dashboard_metrics to anon;
+grant select on public.public_dashboard_metrics to anon, authenticated;
+grant insert, update, select on public.support_payments to service_role;
 grant insert on public.quiz_submissions to anon, authenticated;
 grant select on public.quiz_submissions to authenticated;
 grant insert on public.recommendation_feedback to anon, authenticated;

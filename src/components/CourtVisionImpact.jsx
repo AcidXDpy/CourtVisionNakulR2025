@@ -5,8 +5,8 @@ import Card from './Card.jsx';
 const impactCards = [
   {
     title: 'Play It Forward',
-    description: 'Help identify and support players who need practical equipment assistance.',
-    button: 'Support a Player',
+    description: 'Help keep GearVision online while nominations identify real local equipment needs.',
+    button: 'Support GearVision',
     href: '/play-it-forward',
     icon: HeartHandshake,
   },
