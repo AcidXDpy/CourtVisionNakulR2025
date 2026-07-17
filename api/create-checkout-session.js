@@ -1,31 +1,5 @@
 import Stripe from 'stripe';
-
-const supportTiers = {
-  'site-upkeep': {
-    amountCents: 1000,
-    amountLabel: '$10',
-    title: 'Site Upkeep',
-    description: 'Hosting, domain costs, testing tools, and the basics that keep GearVision online.',
-  },
-  'data-tools': {
-    amountCents: 2500,
-    amountLabel: '$25',
-    title: 'Data Tools',
-    description: 'Catalog research, model evaluation, and data work behind better recommendations.',
-  },
-  'product-sprint': {
-    amountCents: 7500,
-    amountLabel: '$75',
-    title: 'Product Sprint',
-    description: 'Feature work for account analytics, recommendation quality, and user feedback loops.',
-  },
-  'builder-sponsor': {
-    amountCents: 15000,
-    amountLabel: '$150',
-    title: 'Builder Sponsor',
-    description: 'A larger contribution toward making GearVision a serious public data product.',
-  },
-};
+import { supportTiersById } from '../src/data/supportTiers.js';
 
 function sendJson(response, statusCode, payload) {
   response.statusCode = statusCode;
@@ -51,13 +25,13 @@ async function readJsonBody(request) {
 }
 
 function getBaseUrl(request) {
-  const configuredUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  const configuredUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
   if (configuredUrl) return configuredUrl.startsWith('http') ? configuredUrl.replace(/\/$/, '') : `https://${configuredUrl.replace(/\/$/, '')}`;
 
   const origin = request.headers.origin;
-  if (origin) return origin.replace(/\/$/, '');
+  if (origin && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return origin.replace(/\/$/, '');
 
-  const host = request.headers['x-forwarded-host'] || request.headers.host || 'www.gearvision.dev';
+  const host = request.headers['x-forwarded-host'] || request.headers.host || 'court-vision-nakul-r2025.vercel.app';
   const protocol = request.headers['x-forwarded-proto'] || 'https';
   return `${protocol}://${host}`;
 }
@@ -80,7 +54,7 @@ export default async function handler(request, response) {
     return sendJson(response, 400, { error: 'Invalid checkout request.' });
   }
 
-  const tier = supportTiers[body.tierId];
+  const tier = supportTiersById[body.tierId];
   if (!tier) {
     return sendJson(response, 400, { error: 'Unknown support tier.' });
   }
@@ -92,6 +66,7 @@ export default async function handler(request, response) {
       mode: 'payment',
       billing_address_collection: 'auto',
       customer_creation: 'if_required',
+      client_reference_id: `gearvision_support:${body.tierId}`,
       line_items: [
         {
           quantity: 1,
@@ -105,10 +80,22 @@ export default async function handler(request, response) {
           },
         },
       ],
+      payment_intent_data: {
+        metadata: {
+          initiative: 'gearvision_site_support',
+          support_tier_id: body.tierId,
+          support_tier_label: tier.amountLabel,
+        },
+      },
       metadata: {
         initiative: 'gearvision_site_support',
         support_tier_id: body.tierId,
         support_tier_label: tier.amountLabel,
+      },
+      custom_text: {
+        submit: {
+          message: 'Your contribution supports GearVision site hosting, data tooling, and product development. It is not a tax-deductible charitable donation.',
+        },
       },
       success_url: `${baseUrl}/play-it-forward?support=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/play-it-forward?support=cancelled`,

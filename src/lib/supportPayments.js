@@ -1,33 +1,4 @@
-export const supportTiers = [
-  {
-    id: 'site-upkeep',
-    amountLabel: '$10',
-    amountCents: 1000,
-    title: 'Site Upkeep',
-    description: 'Helps cover hosting, domain costs, testing tools, and the basics that keep GearVision online.',
-  },
-  {
-    id: 'data-tools',
-    amountLabel: '$25',
-    amountCents: 2500,
-    title: 'Data Tools',
-    description: 'Supports catalog research, model evaluation, and the data work behind better recommendations.',
-  },
-  {
-    id: 'product-sprint',
-    amountLabel: '$75',
-    amountCents: 7500,
-    title: 'Product Sprint',
-    description: 'Funds deeper feature work: account analytics, recommendation quality, and real user feedback loops.',
-  },
-  {
-    id: 'builder-sponsor',
-    amountLabel: '$150',
-    amountCents: 15000,
-    title: 'Builder Sponsor',
-    description: 'A larger contribution toward making GearVision a serious public data product, not just a class project.',
-  },
-];
+export { supportTiers } from '../data/supportTiers.js';
 
 export async function startSupportCheckout(tierId) {
   const response = await fetch('/api/create-checkout-session', {
@@ -43,4 +14,15 @@ export async function startSupportCheckout(tierId) {
   }
 
   window.location.assign(payload.url);
+}
+
+export async function verifySupportCheckout(sessionId) {
+  const response = await fetch(`/api/checkout-session?session_id=${encodeURIComponent(sessionId)}`);
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(payload.error || 'Could not verify Stripe Checkout status.');
+  }
+
+  return payload;
 }

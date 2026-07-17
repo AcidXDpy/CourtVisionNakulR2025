@@ -79,7 +79,12 @@ export default async function handler(request, response) {
   }
 
   try {
-    if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
+    if (
+      event.type === 'checkout.session.completed'
+      || event.type === 'checkout.session.async_payment_succeeded'
+      || event.type === 'checkout.session.async_payment_failed'
+      || event.type === 'checkout.session.expired'
+    ) {
       await recordSupportPayment(event.data.object);
     }
   } catch (error) {

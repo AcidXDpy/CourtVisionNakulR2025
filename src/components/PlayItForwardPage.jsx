@@ -4,7 +4,7 @@ import Card from './Card.jsx';
 import { Field, ImpactStatCard, SupportTierCard, useLocalForm } from './ImpactShared.jsx';
 import { savePlayerNomination } from '../lib/supabaseClient.js';
 import { trackEvent } from '../lib/analytics.js';
-import { supportTiers, startSupportCheckout } from '../lib/supportPayments.js';
+import { supportTiers, startSupportCheckout, verifySupportCheckout } from '../lib/supportPayments.js';
 
 const nominationDefaults = {
   playerName: '',
@@ -21,6 +21,13 @@ const processSteps = [
   { title: 'Improve', text: 'More time can go into better equipment data, recommendation scoring, account features, and feedback analytics.' },
   { title: 'Share', text: 'The project can stay public, polished, and useful while the community tools keep growing carefully.' },
 ];
+
+function formatPaymentAmount(amountCents, currency = 'usd') {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency.toUpperCase(),
+  }).format((amountCents || 0) / 100);
+}
 
 function PlayerNominationForm() {
   const { values, success, remoteStatus, updateValue, submit } = useLocalForm(nominationDefaults, 'GearVision player nomination', savePlayerNomination);
@@ -65,20 +72,68 @@ export default function PlayItForwardPage() {
   const [checkoutStatus, setCheckoutStatus] = useState({ state: 'idle', tierId: null, message: '' });
 
   useEffect(() => {
+    let mounted = true;
     const params = new URLSearchParams(window.location.search);
     const supportState = params.get('support');
+    const sessionId = params.get('session_id');
+
+    async function verifySession() {
+      if (!sessionId) {
+        setCheckoutStatus({
+          state: 'success',
+          tierId: null,
+          message: 'Thanks for supporting GearVision. Stripe redirected back successfully; the support total updates once the webhook confirms payment.',
+        });
+        return;
+      }
+
+      setCheckoutStatus({ state: 'loading', tierId: null, message: 'Verifying Stripe checkout status...' });
+
+      try {
+        const checkout = await verifySupportCheckout(sessionId);
+        if (!mounted) return;
+        const amount = formatPaymentAmount(checkout.amountTotal, checkout.currency);
+        const tierCopy = checkout.supportTierLabel ? ` (${checkout.supportTierLabel} tier)` : '';
+
+        if (checkout.paymentStatus === 'paid') {
+          setCheckoutStatus({
+            state: 'success',
+            tierId: null,
+            message: `Stripe confirmed ${amount}${tierCopy} in GearVision project support. The public total updates after the webhook records it.`,
+          });
+          trackEvent('support_checkout_completed', { tierId: checkout.supportTierId, amountTotal: checkout.amountTotal });
+        } else {
+          setCheckoutStatus({
+            state: 'pending',
+            tierId: null,
+            message: `Stripe checkout returned with payment status "${checkout.paymentStatus}". If this was an async payment, the total updates after confirmation.`,
+          });
+        }
+
+        window.history.replaceState(null, '', `${window.location.origin}/play-it-forward`);
+      } catch (error) {
+        if (!mounted) return;
+        setCheckoutStatus({
+          state: 'error',
+          tierId: null,
+          message: error.message || 'Stripe redirected back, but GearVision could not verify the session yet.',
+        });
+      }
+    }
 
     if (supportState === 'success') {
-      setCheckoutStatus({
-        state: 'success',
-        tierId: null,
-        message: 'Thank you. Stripe processed the GearVision support payment, and the project support total will update once the webhook confirms payment.',
-      });
+      verifySession();
     }
 
     if (supportState === 'cancelled') {
       setCheckoutStatus({ state: 'cancelled', tierId: null, message: 'Checkout was cancelled. No payment was collected.' });
+      trackEvent('support_checkout_cancelled', {});
+      window.history.replaceState(null, '', `${window.location.origin}/play-it-forward`);
     }
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   async function supportProject(tierId) {
@@ -149,6 +204,8 @@ export default function PlayItForwardPage() {
                   ? 'border-rose-200 bg-rose-50 text-rose-700'
                   : checkoutStatus.state === 'cancelled'
                     ? 'border-amber-200 bg-amber-50 text-amber-800'
+                    : checkoutStatus.state === 'pending'
+                      ? 'border-court-blue/20 bg-court-blue/10 text-court-ink'
                     : 'border-court-green/30 bg-court-green/10 text-court-ink'
               }`}
             >
