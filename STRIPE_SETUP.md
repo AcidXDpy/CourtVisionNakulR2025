@@ -20,7 +20,7 @@ Add these to Production and Preview:
 ```env
 STRIPE_SECRET_KEY=sk_test_or_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-SITE_URL=https://court-vision-nakul-r2025.vercel.app
+SITE_URL=https://www.gearvision.dev
 ```
 
 Notes:
@@ -48,7 +48,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-server-only-service-role-key
 5. Add an endpoint:
 
 ```text
-https://court-vision-nakul-r2025.vercel.app/api/stripe-webhook
+https://www.gearvision.dev/api/stripe-webhook
 ```
 
 6. Select these events:

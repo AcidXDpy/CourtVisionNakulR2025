@@ -47,9 +47,10 @@ In Supabase:
    - `http://localhost:5173/profile`
    - `https://www.gearvision.dev/profile`
    - `https://court-vision-nakul-r2025.vercel.app/profile`
-   - `https://your-vercel-preview-domain.vercel.app/profile`
 
-Google OAuth and magic links redirect users back to `/profile`.
+Google OAuth and magic links redirect users back to `/profile` on the public production site by default. Do not send public users to Vercel preview or project URLs because those can trigger Vercel access-request screens. Add preview redirect URLs only for private internal testing.
+
+In Vercel, set `VITE_PUBLIC_SITE_URL=https://www.gearvision.dev` for Production and Preview so OAuth callbacks always return to the public app instead of a protected team/project deployment URL.
 
 ## 5. Configure Google sign-in
 

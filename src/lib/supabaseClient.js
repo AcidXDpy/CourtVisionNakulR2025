@@ -10,6 +10,12 @@ const supabaseAnonKey =
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 const SESSION_STORAGE_KEY = 'gear_vision_anonymous_session_id';
+const publicSiteUrl = cleanBaseUrl(
+  import.meta.env.GEARVISION_PUBLIC_SITE_URL
+    || import.meta.env.VITE_PUBLIC_SITE_URL
+    || import.meta.env.VITE_SITE_URL
+    || 'https://www.gearvision.dev',
+);
 
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey, {
@@ -144,6 +150,13 @@ function cleanAuthCallbackUrl() {
   window.history.replaceState(window.history.state, '', nextUrl || '/profile');
 }
 
+function authRedirectUrl() {
+  if (typeof window === 'undefined') return `${publicSiteUrl}/profile`;
+  const localHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  const origin = localHost ? window.location.origin : publicSiteUrl;
+  return `${cleanBaseUrl(origin)}/profile`;
+}
+
 export function hasAuthCallbackParams() {
   if (!supabase || typeof window === 'undefined') return false;
   const url = new URL(window.location.href);
@@ -196,7 +209,7 @@ export function onAuthStateChange(callback) {
 
 export async function signInWithMagicLink(email) {
   if (!supabase) return { ok: false, skipped: true, message: 'Supabase is not configured yet.' };
-  const redirectTo = `${window.location.origin}/profile`;
+  const redirectTo = authRedirectUrl();
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
@@ -210,7 +223,7 @@ export async function signInWithMagicLink(email) {
 
 export async function signInWithGoogle() {
   if (!supabase) return { ok: false, skipped: true, message: 'Supabase is not configured yet.' };
-  const redirectTo = `${window.location.origin}/profile`;
+  const redirectTo = authRedirectUrl();
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {

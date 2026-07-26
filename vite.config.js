@@ -10,6 +10,7 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.GEARVISION_SUPABASE_ANON_KEY': JSON.stringify(
         env.VITE_SUPABASE_ANON_KEY || env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY || env.SUPABASE_ANON_KEY || '',
       ),
+      'import.meta.env.GEARVISION_PUBLIC_SITE_URL': JSON.stringify(env.VITE_PUBLIC_SITE_URL || env.VITE_SITE_URL || env.NEXT_PUBLIC_SITE_URL || env.SITE_URL || ''),
     },
     envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
     plugins: [react()],
