@@ -36,7 +36,7 @@ export default function GearGuidesPage() {
               </p>
               <a
                 onClick={() => trackEvent('gear_guide_clicked', { guide: guide.slug })}
-                href="/#quiz"
+                href="/quiz"
                 className="focus-ring mt-5 inline-flex items-center justify-center gap-2 rounded-lg bg-court-blue px-4 py-3 text-sm font-black text-white transition hover:bg-court-green hover:text-court-ink"
               >
                 Take the setup quiz <ArrowRight size={17} />

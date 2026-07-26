@@ -1,4 +1,30 @@
 {
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "gearvision.dev" }],
+      "destination": "https://www.gearvision.dev/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "court-vision-nakul-r2025.vercel.app" }],
+      "destination": "https://www.gearvision.dev/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "court-vision-nakul-r2025-nakul-ramprasad-s-projects.vercel.app" }],
+      "destination": "https://www.gearvision.dev/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "court-vision-nakul-r2025-git-main-nakul-ramprasad-s-projects.vercel.app" }],
+      "destination": "https://www.gearvision.dev/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",

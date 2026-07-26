@@ -23,6 +23,11 @@ const ProfilePage = lazy(() => import('./components/ProfilePage.jsx'));
 
 const routes = new Set(['home', 'quiz', 'gear', 'strings', 'guides', 'methodology', 'impact', 'login', 'profile', 'play-it-forward', 'recycle', 'results']);
 const pathRoutes = new Map([
+  ['/', 'home'],
+  ['/home', 'home'],
+  ['/quiz', 'quiz'],
+  ['/gear', 'gear'],
+  ['/strings', 'strings'],
   ['/guides', 'guides'],
   ['/methodology', 'methodology'],
   ['/impact', 'impact'],
@@ -30,7 +35,9 @@ const pathRoutes = new Map([
   ['/profile', 'profile'],
   ['/play-it-forward', 'play-it-forward'],
   ['/recycle', 'recycle'],
+  ['/results', 'results'],
 ]);
+const canonicalSiteUrl = 'https://www.gearvision.dev';
 
 function readRoute() {
   const hash = window.location.hash.replace('#', '');
@@ -40,10 +47,20 @@ function readRoute() {
   if (pathRoute) return pathRoute;
 
   if (hash) {
-    window.history.replaceState(null, '', `${window.location.origin}/#home`);
+    window.history.replaceState(null, '', '/');
   }
 
   return 'home';
+}
+
+function routePath(route) {
+  return route === 'home' ? '/' : `/${route}`;
+}
+
+function navigateTo(route) {
+  const nextPath = routePath(route);
+  window.history.pushState(null, '', nextPath);
+  window.dispatchEvent(new Event('popstate'));
 }
 
 export default function App() {
@@ -59,8 +76,20 @@ export default function App() {
   const activePage = route === 'results' ? 'quiz' : route;
 
   useEffect(() => {
+    if (!['localhost', '127.0.0.1'].includes(window.location.hostname) && window.location.hostname !== 'www.gearvision.dev') {
+      const nextUrl = new URL(canonicalSiteUrl);
+      nextUrl.pathname = pathRoutes.has(window.location.pathname) ? window.location.pathname : '/';
+      nextUrl.search = window.location.search;
+      nextUrl.hash = window.location.hash;
+      window.location.replace(nextUrl.toString());
+      return undefined;
+    }
+
     function syncRoute() {
       const nextRoute = readRoute();
+      if (window.location.hash && routes.has(window.location.hash.replace('#', ''))) {
+        window.history.replaceState(null, '', routePath(nextRoute));
+      }
       setRoute(nextRoute);
       window.setTimeout(() => {
         if (nextRoute === 'results') {
@@ -124,7 +153,7 @@ export default function App() {
 
   function startQuiz() {
     trackEvent('quiz_started', { source: 'app_start_quiz' });
-    window.location.hash = 'quiz';
+    navigateTo('quiz');
   }
 
   function completeQuiz(nextResult) {
@@ -136,7 +165,7 @@ export default function App() {
       consentToResearch: Boolean(nextResult.consentToResearch),
     });
     saveQuizSubmission(nextResult);
-    window.location.hash = 'results';
+    navigateTo('results');
   }
 
   function resetQuiz() {
