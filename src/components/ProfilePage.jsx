@@ -95,6 +95,7 @@ export default function ProfilePage({ session, authStatus = 'ready', authMessage
   const [analytics, setAnalytics] = useState({ profile: null, setups: [], quizzes: [], feedback: [] });
   const [status, setStatus] = useState('loading');
   const [saveStatus, setSaveStatus] = useState('');
+  const userName = session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0] || 'player';
 
   async function refresh() {
     if (!session) return;
@@ -232,6 +233,21 @@ export default function ProfilePage({ session, authStatus = 'ready', authMessage
           <p className="max-w-2xl text-base leading-8 text-slate-600 lg:justify-self-end">
             GearVision tracks your profile, setup experiments, quiz history, and feedback so recommendations can become more personal over time.
           </p>
+        </div>
+
+        <div className="mt-8 rounded-lg border border-court-blue/20 bg-gradient-to-r from-court-blue/10 via-white to-court-lime/20 p-5 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-court-blue">Welcome to GearVision</p>
+              <h2 className="mt-2 text-2xl font-black text-court-ink">You are signed in, {userName}.</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Your recommendations, setup tracker, and feedback history can now be saved privately to this account.
+              </p>
+            </div>
+            <div className="rounded-lg border border-court-line bg-white px-4 py-3 text-sm font-bold text-slate-600 shadow-sm">
+              {session.user.email}
+            </div>
+          </div>
         </div>
 
         <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">

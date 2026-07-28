@@ -9,6 +9,7 @@ export default function LoginPage({ session, authStatus = 'ready', authMessage =
   const [message, setMessage] = useState('');
   const authLoading = authStatus === 'loading';
   const authError = authStatus === 'error';
+  const userName = session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0] || 'player';
 
   async function submit(event) {
     event.preventDefault();
@@ -61,12 +62,12 @@ export default function LoginPage({ session, authStatus = 'ready', authMessage =
         <Card className="bg-gradient-to-br from-white via-court-blue/5 to-court-lime/20">
           <div className="flex items-center gap-3">
             <span className="grid h-12 w-12 place-items-center rounded-lg bg-court-blue text-white">
-              <Mail size={24} />
+              {session ? <ShieldCheck size={24} /> : <Mail size={24} />}
             </span>
             <div>
-              <h2 className="text-2xl font-black text-court-ink">{authLoading ? 'Finishing sign-in' : session ? 'You are signed in' : 'Sign in to GearVision'}</h2>
+              <h2 className="text-2xl font-black text-court-ink">{authLoading ? 'Finishing sign-in' : session ? 'Welcome to GearVision' : 'Sign in to GearVision'}</h2>
               <p className="text-sm text-slate-600">
-                {authLoading ? 'Securely checking your Google session...' : session?.user?.email || 'Use Google first. Email link stays available as a fallback.'}
+                {authLoading ? 'Securely checking your Google session...' : session ? `Signed in as ${session.user.email}` : 'Use Google first. Email link stays available as a fallback.'}
               </p>
             </div>
           </div>
@@ -82,14 +83,23 @@ export default function LoginPage({ session, authStatus = 'ready', authMessage =
               Hold tight. GearVision is completing the OAuth callback and loading your account.
             </div>
           ) : session ? (
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              <a href="/profile" className="focus-ring inline-flex items-center justify-center gap-2 rounded-lg bg-court-blue px-4 py-3 text-sm font-black text-white transition hover:bg-court-green hover:text-court-ink">
-                <ShieldCheck size={17} />
-                Open profile
-              </a>
-              <button onClick={handleSignOut} className="focus-ring rounded-lg border border-court-ink/15 px-4 py-3 text-sm font-black text-court-ink transition hover:border-court-blue hover:bg-court-blue/10">
-                Sign out
-              </button>
+            <div className="mt-6">
+              <div className="rounded-lg border border-court-blue/20 bg-white p-4">
+                <p className="text-sm font-black uppercase tracking-[0.16em] text-court-blue">Account active</p>
+                <h3 className="mt-2 text-2xl font-black text-court-ink">Good to see you, {userName}.</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Your private GearVision profile is ready. Quiz results, setup notes, and feedback can now stay tied to your account.
+                </p>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <a href="/profile" className="focus-ring inline-flex items-center justify-center gap-2 rounded-lg bg-court-blue px-4 py-3 text-sm font-black text-white transition hover:bg-court-green hover:text-court-ink">
+                  <ShieldCheck size={17} />
+                  Open profile
+                </a>
+                <button onClick={handleSignOut} className="focus-ring rounded-lg border border-court-ink/15 px-4 py-3 text-sm font-black text-court-ink transition hover:border-court-blue hover:bg-court-blue/10">
+                  Sign out
+                </button>
+              </div>
             </div>
           ) : (
             <div className="mt-6 grid gap-5">

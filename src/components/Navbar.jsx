@@ -14,9 +14,10 @@ const baseLinks = [
 
 export default function Navbar({ activePage, user, authStatus = 'ready' }) {
   const authLoading = authStatus === 'loading';
+  const userLabel = user?.user_metadata?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'Account';
   const links = [
     ...baseLinks,
-    { label: authLoading ? 'Checking' : user ? 'My Data' : 'Sign in', id: user ? 'profile' : 'login', icon: UserRound, href: user ? '/profile' : '/login' },
+    { label: authLoading ? 'Checking' : user ? `Hi, ${userLabel}` : 'Sign in', id: user ? 'profile' : 'login', icon: UserRound, href: user ? '/profile' : '/login' },
   ];
 
   const renderLink = ({ label, id, icon: Icon, href }, compact = false) => {
